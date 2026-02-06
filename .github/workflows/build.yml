@@ -1,0 +1,37 @@
+name: Build ASP.NET Core MVC App
+
+on:
+  workflow_dispatch:  
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev, 'feature/**' ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.102' 
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+    
+    - name: Publish
+      run: dotnet publish --configuration Release --no-build --output ./publish
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: published-app
+        path: ./publish
+        retention-days: 7
