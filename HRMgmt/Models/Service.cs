@@ -1,5 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace HRMgmt.Models
 {
@@ -16,7 +15,6 @@ namespace HRMgmt.Models
         [Range(0.01, 999999.99, ErrorMessage = "Rate cannot be negative")]
         public decimal Rate { get; set; }
         public virtual ICollection<Employee> Employees { get; set; }
-        public DbSet<ShiftAssignment> ShiftAssignments { get; set; }
     }
 
 }
