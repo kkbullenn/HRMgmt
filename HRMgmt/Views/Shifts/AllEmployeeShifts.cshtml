@@ -1,0 +1,28 @@
+@model IEnumerable<HRMgmt.Models.EmployeeShift>
+@{
+    ViewBag.Title = "All Shift Records";
+}
+<h2>All Shift Records</h2>
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Shift</th>
+            <th>Start Time</th>
+            <th>End Time</th>
+            <th>Employee</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@item.Date.ToString("yyyy-MM-dd")</td>
+            <td>@item.Shift?.Name</td>
+            <td>@item.Shift?.StartTime.ToString(@"hh\:mm")</td>
+            <td>@item.Shift?.EndTime.ToString(@"hh\:mm")</td>
+            <td>@item.Employee?.Name</td>
+        </tr>
+    }
+    </tbody>
+</table>
