@@ -1,8 +1,15 @@
-﻿@{
+@{
     ViewData["Title"] = "Home Page";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="text-center mt-4">
+    @if (ViewBag.UserRole != null)
+    {
+        <p>Welcome, @ViewBag.UserName. The time is currently @DateTime.Now.ToString("h:mm tt, MMMM dd, yyyy").</p>
+    }
+    else
+    {
+        <h5>Welcome to HR Management!</h5>
+        <p>Please sign-up or log in.</p>
+    }
 </div>
