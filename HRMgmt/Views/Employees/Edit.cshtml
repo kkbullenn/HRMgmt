@@ -1,0 +1,94 @@
+@model HRMgmt.Models.Employee
+
+@{
+    ViewData["Title"] = "Edit";
+}
+
+<h1>Edit</h1>
+
+<h4>Employee</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Edit" enctype="multipart/form-data">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            
+            <input type="hidden" asp-for="ID" />
+            <div class="form-group">
+                <label asp-for="Name" class="control-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Address" class="control-label"></label>
+                <input asp-for="Address" class="form-control" />
+                <span asp-validation-for="Address" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="DateOfBirth" class="control-label"></label>
+                <input asp-for="DateOfBirth" class="form-control" type="date" />
+                <span asp-validation-for="DateOfBirth" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Photo" class="control-label"></label>
+                <input name="Photo" type="file" class="form-control" id="Photo" accept="image/*" onchange="previewPhoto(event)" />
+                <input type="hidden" name="ExistingPhoto" value="@Convert.ToBase64String(Model.Photo)" />
+                <div id="photoPreviewContainer" style="margin-top:10px;">
+                    <img id="photoPreview" src="" alt="Photo Preview" style="max-width:200px; max-height:200px; display:none; margin-bottom:5px;" />
+                    @if (Model != null && Model.Photo != null)
+                    {
+                        <img id="originalPhoto" src="data:image/jpeg;base64,@Convert.ToBase64String(Model.Photo)" width="200" style="display:block; margin-bottom:5px;" />
+                    }
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="removePhoto()">Remove</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label asp-for="Salary" class="control-label"></label>
+                <input asp-for="Salary" class="form-control" />
+                <span asp-validation-for="Salary" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Save" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        function previewPhoto(event) {
+            const input = event.target;
+            const preview = document.getElementById('photoPreview');
+            const original = document.getElementById('originalPhoto');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    if (original) original.style.display = 'none';
+                };
+                reader.readAsDataURL(input.files[0]);
+            } else {
+                preview.src = '';
+                preview.style.display = 'none';
+                if (original) original.style.display = 'block';
+            }
+        }
+        function removePhoto() {
+            const input = document.getElementById('Photo');
+            input.value = '';
+            input.type = '';
+            input.type = 'file';
+            const preview = document.getElementById('photoPreview');
+            const original = document.getElementById('originalPhoto');
+            preview.src = '';
+            preview.style.display = 'none';
+            if (original) original.style.display = 'block';
+        }
+    </script>
+}
