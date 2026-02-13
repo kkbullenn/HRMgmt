@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
 	<AnalysisLevel>latest</AnalysisLevel>
 	<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-	<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+<!--	<TreatWarningsAsErrors>true</TreatWarningsAsErrors  turn this on later when people are comfortable with the codebase-->
   </PropertyGroup>
 
   <ItemGroup>
