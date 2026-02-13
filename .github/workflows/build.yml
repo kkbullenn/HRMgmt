@@ -2,7 +2,7 @@ name: Build ASP.NET Core MVC App
 on:
   workflow_dispatch:  
   push:
-    branches: [ main, dev, 'feature/**' ]
+    branches: [ main, dev ]
   pull_request:
     branches: [ main, dev, 'feature/**' ]
 
@@ -35,8 +35,8 @@ jobs:
     # Optional: Run tests once we have them
     # - name: Test
     #   run: |
-    #    if [ -d "QATesting" ]; then
-    #     dotnet test QATesting --configuration Release --no-build --verbosity normal
+    #    if [ -d "HRMgmntTest" ]; then
+    #     dotnet test HRMgmntTest --configuration Release --no-build --verbosity normal
     #   else
 
     #   fi
