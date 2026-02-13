@@ -1,18 +1,12 @@
 using System.Diagnostics;
 using HRMgmt.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRMgmt.Controllers
 {
-    public class HomeController : Controller
+    public class HomeController(OrgDbContext context) : Controller
     {
-        private readonly OrgDbContext _context;
-
-        public HomeController(OrgDbContext context)
-        {
-            _context = context;
-        }
+        private readonly OrgDbContext _context = context;
 
         public IActionResult Index()
         {
