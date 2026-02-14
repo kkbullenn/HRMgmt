@@ -29,6 +29,7 @@ namespace HRMgmt
                 .WithMany(s => s.EmployeeShifts)
                 .HasForeignKey(es => es.ShiftId);
         }
+        public DbSet<HRMgmt.Models.User> User { get; set; } = default!;
     }
 
 }
