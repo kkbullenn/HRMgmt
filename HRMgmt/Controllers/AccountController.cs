@@ -60,69 +60,6 @@ namespace HRMgmt.Controllers
             return RedirectToAction("Index", "Users");
         }
 
-        // GET: Account/Signup
-        [HttpGet]
-        public IActionResult Signup()
-        {
-            return View();
-        }
-
-        // POST: Account/Signup
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Signup(
-            string username,
-            string password,
-            string confirmPassword,
-            string role,
-            string displayName)
-        {
-            if (string.IsNullOrWhiteSpace(username) ||
-                string.IsNullOrWhiteSpace(password) ||
-                string.IsNullOrWhiteSpace(role))
-            {
-                ViewBag.Error = "All fields are required.";
-                return View();
-            }
-
-            if (password != confirmPassword)
-            {
-                ViewBag.Error = "Passwords do not match.";
-                return View();
-            }
-
-            if (password.Length < 6)
-            {
-                ViewBag.Error = "Password must be at least 6 characters.";
-                return View();
-            }
-
-            var exists = await _context.Account.AnyAsync(a => a.Username == username);
-            if (exists)
-            {
-                ViewBag.Error = "Username already exists.";
-                return View();
-            }
-
-            var account = new Account
-            {
-                Username = username,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-                Role = role,
-                DisplayName = string.IsNullOrWhiteSpace(displayName) ? username : displayName,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.Account.Add(account);
-            await _context.SaveChangesAsync();
-
-            HttpContext.Session.SetString("UserRole", account.Role);
-            HttpContext.Session.SetString("UserName", account.DisplayName ?? account.Username);
-            HttpContext.Session.SetString("UserId", account.Id.ToString());
-
-            return RedirectToAction("Index", "Users");
-        }
-
         // GET: Account/Logout
         [HttpGet]
         public IActionResult Logout()
@@ -161,13 +98,40 @@ namespace HRMgmt.Controllers
         // POST: Account/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Username,PasswordHash,Role,DisplayName,CreatedAt")] Account account)
+        public async Task<IActionResult> Create(string username, string password, string role, string displayName)
         {
-            if (!ModelState.IsValid) return View(account);
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(role))
+            {
+                ViewBag.Error = "Username, password, and role are required.";
+                return View();
+            }
 
-            _context.Add(account);
+            if (password.Length < 6)
+            {
+                ViewBag.Error = "Password must be at least 6 characters.";
+                return View();
+            }
+
+            var exists = await _context.Account.AnyAsync(a => a.Username == username);
+            if (exists)
+            {
+                ViewBag.Error = "Username already exists.";
+                return View();
+            }
+
+            var account = new Account
+            {
+                Username = username,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                Role = role,
+                DisplayName = string.IsNullOrWhiteSpace(displayName) ? username : displayName,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Account.Add(account);
             await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            TempData["Success"] = $"Account '{username}' created successfully.";
+            return RedirectToAction(nameof(Create));
         }
 
         // GET: Account/Edit/5

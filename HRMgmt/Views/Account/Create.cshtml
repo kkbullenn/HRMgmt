@@ -1,25 +1,30 @@
 @{
-    ViewData["Title"] = "Sign Up";
+    ViewData["Title"] = "Create Account";
 }
 
 <div class="row justify-content-center mt-4">
     <div class="col-md-5">
-        <h3 class="text-center mb-4">Sign Up</h3>
+        <h3 class="text-center mb-4">Create New Account</h3>
+
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success">@TempData["Success"]</div>
+        }
 
         @if (ViewBag.Error != null)
         {
             <div class="alert alert-danger">@ViewBag.Error</div>
         }
 
-        <form method="post" asp-controller="Account" asp-action="Signup">
+        <form method="post" asp-controller="Account" asp-action="Create">
             <div class="mb-3">
                 <label for="username" class="form-label">Username</label>
-                <input type="text" class="form-control" id="username" name="username" required/>
+                <input type="text" class="form-control" id="username" name="username" required />
             </div>
 
             <div class="mb-3">
                 <label for="displayName" class="form-label">Display Name</label>
-                <input type="text" class="form-control" id="displayName" name="displayName" placeholder="Optional"/>
+                <input type="text" class="form-control" id="displayName" name="displayName" placeholder="Optional" />
             </div>
 
             <div class="mb-3">
@@ -35,20 +40,15 @@
 
             <div class="mb-3">
                 <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" name="password" required minlength="6"/>
+                <input type="password" class="form-control" id="password" name="password" required minlength="6" />
                 <div class="form-text">At least 6 characters.</div>
             </div>
 
-            <div class="mb-3">
-                <label for="confirmPassword" class="form-label">Confirm Password</label>
-                <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required/>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100">Sign Up</button>
+            <button type="submit" class="btn btn-primary w-100">Create Account</button>
         </form>
 
-        <p class="text-center mt-3">
-            Already have an account? <a asp-controller="Account" asp-action="Login">Log in</a>
-        </p>
+        <div class="text-center mt-3">
+            <a asp-controller="Home" asp-action="Index">Back to Home</a>
+        </div>
     </div>
 </div>
