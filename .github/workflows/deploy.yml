@@ -2,9 +2,16 @@ name: Build and Deploy to Azure Container Registry
 
 on:
   push:
-    branches: [ main, dev, 'devops/docker']
+    branches:
+      - main
+      - dev
+      - 'feature/**'
+
   pull_request:
-    branches: [ main, dev, 'feature/**', 'devops/docker' ]
+    branches:
+      - main
+      - dev
+      - 'feature/**'
 
 env:
   REGISTRY: hrmgmtregistry123.azurecr.io
@@ -15,14 +22,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Login to ACR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
+        run: az acr login --name hrmgmtregistry123
 
       - name: Build image
         run: |
