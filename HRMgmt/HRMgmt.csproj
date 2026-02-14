@@ -2,13 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <!-- You're probably going to want to change this back to 'enable' at some point, but for now,
-    let's disable nullable reference types to avoid potential issues with existing code. -->
-    <Nullable>disable</Nullable>
+    <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-	<AnalysisLevel>latest</AnalysisLevel>
-	<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-<!--	<TreatWarningsAsErrors>true</TreatWarningsAsErrors  turn this on later when people are comfortable with the codebase-->
   </PropertyGroup>
 
   <ItemGroup>
