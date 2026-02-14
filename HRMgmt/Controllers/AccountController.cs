@@ -1,13 +1,12 @@
+using HRMgmt.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.Scripting;
+using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using HRMgmt.Models;
 
-namespace HRMgmt
+namespace HRMgmt.Controllers
 {
     public class AccountController : Controller
     {
@@ -18,6 +17,124 @@ namespace HRMgmt
             _context = context;
         }
 
+        // =========================
+        // AUTH: LOGIN / SIGNUP / LOGOUT
+        // =========================
+
+        // GET: Account/Login?role=Employee
+        [HttpGet]
+        public IActionResult Login(string role)
+        {
+            ViewBag.Role = role;
+            return View();
+        }
+
+        // POST: Account/Login
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Login(string username, string password, string role)
+        {
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            {
+                ViewBag.Role = role;
+                ViewBag.Error = "Username and password are required.";
+                return View();
+            }
+
+            // IMPORTANT: assumes OrgDbContext has DbSet<Account> Accounts
+            var account = await _context.Account
+                .FirstOrDefaultAsync(a => a.Username == username && a.Role == role);
+
+            if (account == null || !BCrypt.Net.BCrypt.Verify(password, account.PasswordHash))
+            {
+                ViewBag.Role = role;
+                ViewBag.Error = "Invalid username or password.";
+                return View();
+            }
+
+            HttpContext.Session.SetString("UserRole", account.Role);
+            HttpContext.Session.SetString("UserName", account.DisplayName ?? account.Username);
+            HttpContext.Session.SetString("UserId", account.Id.ToString());
+
+            // You don't have HomeController in your project right now
+            return RedirectToAction("Index", "Users");
+        }
+
+        // GET: Account/Signup
+        [HttpGet]
+        public IActionResult Signup()
+        {
+            return View();
+        }
+
+        // POST: Account/Signup
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Signup(
+            string username,
+            string password,
+            string confirmPassword,
+            string role,
+            string displayName)
+        {
+            if (string.IsNullOrWhiteSpace(username) ||
+                string.IsNullOrWhiteSpace(password) ||
+                string.IsNullOrWhiteSpace(role))
+            {
+                ViewBag.Error = "All fields are required.";
+                return View();
+            }
+
+            if (password != confirmPassword)
+            {
+                ViewBag.Error = "Passwords do not match.";
+                return View();
+            }
+
+            if (password.Length < 6)
+            {
+                ViewBag.Error = "Password must be at least 6 characters.";
+                return View();
+            }
+
+            var exists = await _context.Account.AnyAsync(a => a.Username == username);
+            if (exists)
+            {
+                ViewBag.Error = "Username already exists.";
+                return View();
+            }
+
+            var account = new Account
+            {
+                Username = username,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                Role = role,
+                DisplayName = string.IsNullOrWhiteSpace(displayName) ? username : displayName,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Account.Add(account);
+            await _context.SaveChangesAsync();
+
+            HttpContext.Session.SetString("UserRole", account.Role);
+            HttpContext.Session.SetString("UserName", account.DisplayName ?? account.Username);
+            HttpContext.Session.SetString("UserId", account.Id.ToString());
+
+            return RedirectToAction("Index", "Users");
+        }
+
+        // GET: Account/Logout
+        [HttpGet]
+        public IActionResult Logout()
+        {
+            HttpContext.Session.Clear();
+            return RedirectToAction("Login", "Account");
+        }
+
+        // =========================
+        // CRUD: SCAFFOLDED ACTIONS
+        // =========================
+
         // GET: Account
         public async Task<IActionResult> Index()
         {
@@ -27,17 +144,10 @@ namespace HRMgmt
         // GET: Account/Details/5
         public async Task<IActionResult> Details(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
-            var account = await _context.Account
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (account == null)
-            {
-                return NotFound();
-            }
+            var account = await _context.Account.FirstOrDefaultAsync(m => m.Id == id);
+            if (account == null) return NotFound();
 
             return View(account);
         }
@@ -49,86 +159,58 @@ namespace HRMgmt
         }
 
         // POST: Account/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Username,PasswordHash,Role,DisplayName,CreatedAt")] Account account)
         {
-            if (ModelState.IsValid)
-            {
-                _context.Add(account);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            return View(account);
+            if (!ModelState.IsValid) return View(account);
+
+            _context.Add(account);
+            await _context.SaveChangesAsync();
+            return RedirectToAction(nameof(Index));
         }
 
         // GET: Account/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
             var account = await _context.Account.FindAsync(id);
-            if (account == null)
-            {
-                return NotFound();
-            }
+            if (account == null) return NotFound();
+
             return View(account);
         }
 
         // POST: Account/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("Id,Username,PasswordHash,Role,DisplayName,CreatedAt")] Account account)
         {
-            if (id != account.Id)
+            if (id != account.Id) return NotFound();
+
+            if (!ModelState.IsValid) return View(account);
+
+            try
             {
-                return NotFound();
+                _context.Update(account);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!AccountExists(account.Id)) return NotFound();
+                throw;
             }
 
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    _context.Update(account);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!AccountExists(account.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
-            }
-            return View(account);
+            return RedirectToAction(nameof(Index));
         }
 
         // GET: Account/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
-            var account = await _context.Account
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (account == null)
-            {
-                return NotFound();
-            }
+            var account = await _context.Account.FirstOrDefaultAsync(m => m.Id == id);
+            if (account == null) return NotFound();
 
             return View(account);
         }
@@ -142,9 +224,9 @@ namespace HRMgmt
             if (account != null)
             {
                 _context.Account.Remove(account);
+                await _context.SaveChangesAsync();
             }
 
-            await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 
