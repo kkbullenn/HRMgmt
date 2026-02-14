@@ -11,7 +11,6 @@ namespace HRMgmt
         public DbSet<Shift> Shifts { get; set; }
         public DbSet<EmployeeShift> EmployeeShifts { get; set; }
         public DbSet<ShiftTemplate> ShiftTemplates { get; set; }
-        public DbSet<Account> Accounts { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
