@@ -1,9 +1,10 @@
 name: Build and Deploy to Azure Container Registry
 
 on:
-  pull_request: [ main, dev, 'feature/**' ]
   push:
-    branches: [ main, dev, 'feature/**' ]
+    branches: [ main, dev, 'devops/docker']
+  pull_request:
+    branches: [ main, dev, 'feature/**', 'devops/docker' ]
 
 env:
   REGISTRY: hrmgmtregistry123.azurecr.io
