@@ -48,6 +48,7 @@ namespace HRMgmt
                 .WithMany()
                 .HasForeignKey(p => p.UserId);
         }
+        public DbSet<HRMgmt.Models.Account> Account { get; set; } = default!;
     }
 
 }
