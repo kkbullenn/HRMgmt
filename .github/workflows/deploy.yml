@@ -1,7 +1,7 @@
 name: Build and Deploy to Azure Container Registry
 
 on:
-  pull-request: [ main, dev, 'feature/**' ]
+  pull_request: [ main, dev, 'feature/**' ]
   push:
     branches: [ main, dev, 'feature/**' ]
 
