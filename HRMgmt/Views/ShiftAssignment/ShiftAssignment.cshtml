@@ -1,0 +1,308 @@
+@model HRMgmt.ViewModels.EmployeeShiftGridViewModel
+@using HRMgmt.Models
+@{
+    ViewData["Title"] = "Employee Shift Assignment";
+    var daysOfWeek = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
+    var shiftTypes = new[]
+    {
+        new { Key = "morning", Name = "Morning", Color = "#ffe066" },
+        new { Key = "evening", Name = "Evening", Color = "#b2f2bb" },
+        new { Key = "night", Name = "Night", Color = "#a5d8ff" }
+    };
+    var users = (Model?.Users ?? new List<User>()).OrderBy(u => u.UserId).ToList();
+    var templates = (ViewBag.TemplateNames as IEnumerable<string> ?? Enumerable.Empty<string>()).ToList();
+    var grid = (Model?.Grid ?? new List<string>());
+    var totalCells = users.Count * daysOfWeek.Length;
+    if (grid.Count < totalCells)
+    {
+        grid.AddRange(Enumerable.Repeat(string.Empty, totalCells - grid.Count));
+    }
+}
+
+<link rel="stylesheet" href="/css/assigngrid-menu.css" />
+<div class="assigngrid-menu">
+    <h4>Template List</h4>
+    <ul class="assigngrid-menu-list" id="templateMenu">
+        @foreach (var name in templates)
+        {
+            <li onclick="loadTemplate('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(name))')">@name</li>
+        }
+    </ul>
+    <div style="padding: 16px 24px 0 24px;">
+        <a href="#" onclick="createNewTemplate();return false;" style="color:#007bff; font-weight:bold;">+ Create new template</a>
+    </div>
+</div>
+
+<div class="assigngrid-main">
+    <h2>Employee Shift Assignment</h2>
+    <form asp-action="SaveShiftTemplate" method="post" id="mainForm">
+        <style>
+            .batch-btn {
+                border: none;
+                border-radius: 4px;
+                color: #333;
+                font-weight: bold;
+                margin: 0 2px 2px 2px;
+                padding: 2px 8px;
+                cursor: pointer;
+                transition: box-shadow 0.1s;
+            }
+
+            .batch-btn:hover,
+            .batch-btn:focus {
+                box-shadow: 0 0 0 2px #adb5bd;
+            }
+
+            .selected-row {
+                background: #f3f0ff !important;
+            }
+
+            .shift-cell {
+                min-width: 70px;
+                height: 32px;
+                border-radius: 4px;
+                text-align: center;
+                font-weight: bold;
+                cursor: pointer;
+            }
+
+            .shift-morning { background: #ffe066; }
+            .shift-evening { background: #b2f2bb; }
+            .shift-night { background: #a5d8ff; }
+            .shift-none {
+                background: #dee2e6;
+                color: #888;
+            }
+        </style>
+
+        <div class="mb-2">
+            <label>Template Name <input type="text" name="templateName" id="templateNameInput" required class="form-control d-inline-block" style="width:200px;display:inline-block;" /></label>
+            <label class="ms-3">Week Type
+                <select name="weekType" id="weekTypeInput" class="form-select d-inline-block" style="width:100px;display:inline-block;">
+                    <option value="1">Odd Week</option>
+                    <option value="2">Even Week</option>
+                </select>
+            </label>
+            <label class="ms-3">Week Index
+                <select name="weekIndex" id="weekIndexInput" class="form-select d-inline-block" style="width:100px;display:inline-block;">
+                    <option value="0">Week 1</option>
+                    <option value="1">Week 2</option>
+                </select>
+            </label>
+        </div>
+
+        <table class="table table-bordered" id="shiftTable">
+            <thead>
+                <tr>
+                    <th style="width:40px;"></th>
+                    <th>Employee</th>
+                    @for (int d = 0; d < daysOfWeek.Length; d++)
+                    {
+                        <th>
+                            <div>@daysOfWeek[d]</div>
+                            <div>
+                                @foreach (var s in shiftTypes)
+                                {
+                                    <button type="button" class="batch-btn" style="background:@s.Color;" onclick="batchAssign(@d, '@s.Key')">@s.Name</button>
+                                }
+                                <button type="button" class="batch-btn" style="background:#dee2e6; color:#888;" onclick="batchAssign(@d, '')">Clear</button>
+                            </div>
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < users.Count; i++)
+                {
+                    <tr data-row="@i">
+                        <input type="hidden" name="Users[@i].UserId" value="@users[i].UserId" class="user-id-input" />
+                        <td class="checkbox-cell"><input type="checkbox" class="row-select" data-row="@i" /></td>
+                        <td class="emp-name" style="cursor:pointer;">@($"{users[i].FirstName} {users[i].LastName}")</td>
+                        @for (int j = 0; j < daysOfWeek.Length; j++)
+                        {
+                            var idx = i * daysOfWeek.Length + j;
+                            var cellValue = grid[idx];
+                            var colorClass = cellValue == "morning" ? "shift-morning" : cellValue == "evening" ? "shift-evening" : cellValue == "night" ? "shift-night" : "shift-none";
+                            <td>
+                                <input type="hidden" name="Grid[@idx]" value="@cellValue" />
+                                <select class="shift-dropdown shift-cell @colorClass" data-row="@i" data-col="@j" style="width:100%;height:32px;padding:0 8px;border-radius:4px;font-weight:bold;text-align:center;">
+                                    <option value="" selected="@string.IsNullOrEmpty(cellValue)"> </option>
+                                    <option value="morning" selected="@(cellValue == "morning")">Morning</option>
+                                    <option value="evening" selected="@(cellValue == "evening")">Evening</option>
+                                    <option value="night" selected="@(cellValue == "night")">Night</option>
+                                </select>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+
+    <button type="button" id="autoAssignBtn" class="btn btn-success" style="margin-top:16px;">Generate Shiftsheets</button>
+    <div class="mb-2">
+        <label class="me-2">Assignment Range:</label>
+        <input type="date" name="assignStart" id="assignStart" class="form-control d-inline-block" style="width:150px;display:inline-block;" />
+        <span class="mx-2">to</span>
+        <input type="date" name="assignEnd" id="assignEnd" class="form-control d-inline-block" style="width:150px;display:inline-block;" />
+        <span class="text-muted ms-2">(Leave blank to use default shift range)</span>
+    </div>
+</div>
+
+<script>
+    function updateDropdownColor(dropdown) {
+        const v = dropdown.value;
+        dropdown.classList.remove('shift-morning', 'shift-evening', 'shift-night', 'shift-none');
+        if (v === "morning") dropdown.classList.add('shift-morning');
+        else if (v === "evening") dropdown.classList.add('shift-evening');
+        else if (v === "night") dropdown.classList.add('shift-night');
+        else dropdown.classList.add('shift-none');
+    }
+
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('shift-dropdown')) {
+            updateDropdownColor(e.target);
+            const input = e.target.parentElement.querySelector('input[type="hidden"]');
+            if (input) input.value = e.target.value;
+        }
+    });
+
+    function createNewTemplate() {
+        document.getElementById('templateNameInput').value = '';
+        document.getElementById('weekTypeInput').value = '1';
+        document.getElementById('weekIndexInput').value = '0';
+        document.querySelectorAll("input[name^='Grid[']").forEach(input => input.value = '');
+        document.querySelectorAll('.shift-dropdown').forEach(sel => {
+            sel.value = '';
+            updateDropdownColor(sel);
+        });
+        document.querySelectorAll('.row-select').forEach(cb => {
+            cb.checked = false;
+            cb.closest('tr').classList.remove('selected-row');
+        });
+        document.querySelectorAll('.assigngrid-menu-list li').forEach(li => li.classList.remove('active'));
+    }
+
+    window.loadTemplate = function(name) {
+        createNewTemplate();
+        fetch(`/Shift/GetTemplateData?name=${encodeURIComponent(name)}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('templateNameInput').value = data.templateName || '';
+                document.getElementById('weekTypeInput').value = data.weekType || '1';
+                document.getElementById('weekIndexInput').value = data.weekIndex || '0';
+
+                for (let i = 0; i < (data.grid || []).length; i++) {
+                    const input = document.querySelector(`input[name='Grid[${i}]']`);
+                    if (input) input.value = data.grid[i] || '';
+                    const sel = document.querySelector(`.shift-dropdown[data-row='${Math.floor(i / 7)}'][data-col='${i % 7}']`);
+                    if (sel) {
+                        sel.value = data.grid[i] || '';
+                        updateDropdownColor(sel);
+                    }
+                }
+
+                document.querySelectorAll('.assigngrid-menu-list li').forEach(li => {
+                    li.classList.toggle('active', li.textContent === name);
+                });
+            });
+    };
+
+    let dragSelecting = false;
+    let dragMode = null;
+    document.querySelectorAll('.row-select').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            cb.closest('tr').classList.toggle('selected-row', cb.checked);
+        });
+        cb.addEventListener('mousedown', function(e) {
+            if (e.button !== 0) return;
+            dragSelecting = false;
+            const mousemove = function(ev) {
+                if (!dragSelecting && Math.abs(ev.clientY - e.clientY) > 2) {
+                    dragSelecting = true;
+                    dragMode = cb.checked ? 'unselect' : 'select';
+                    cb.checked = dragMode === 'select';
+                    cb.closest('tr').classList.toggle('selected-row', cb.checked);
+                }
+                if (dragSelecting) {
+                    cb.checked = dragMode === 'select';
+                    cb.closest('tr').classList.toggle('selected-row', cb.checked);
+                }
+            };
+            const mouseup = function() {
+                document.removeEventListener('mousemove', mousemove);
+                document.removeEventListener('mouseup', mouseup);
+                dragSelecting = false;
+                dragMode = null;
+            };
+            document.addEventListener('mousemove', mousemove);
+            document.addEventListener('mouseup', mouseup);
+        });
+        cb.addEventListener('mouseenter', function() {
+            if (dragSelecting) {
+                cb.checked = dragMode === 'select';
+                cb.closest('tr').classList.toggle('selected-row', cb.checked);
+            }
+        });
+    });
+
+    document.addEventListener('mouseup', function() {
+        dragSelecting = false;
+        dragMode = null;
+    });
+
+    window.batchAssign = function(col, shiftType) {
+        document.querySelectorAll('.row-select:checked').forEach(function(cb) {
+            const row = cb.getAttribute('data-row');
+            const input = document.querySelector('input[name="Grid[' + (row * 7 + col) + ']"]');
+            const sel = document.querySelector('.shift-dropdown[data-row="' + row + '"][data-col="' + col + '"]');
+            if (input) input.value = shiftType;
+            if (sel) {
+                sel.value = shiftType;
+                updateDropdownColor(sel);
+            }
+        });
+    };
+
+    document.getElementById('autoAssignBtn').addEventListener('click', async function(e) {
+        e.preventDefault();
+        const templateName = (document.getElementById('templateNameInput').value || '').trim();
+        const assignStart = document.getElementById('assignStart').value;
+        const assignEnd = document.getElementById('assignEnd').value;
+        if (!templateName) {
+            alert('Please enter/select a template name.');
+            return;
+        }
+        this.disabled = true;
+        this.textContent = 'Assigning...';
+        try {
+            const resp = await fetch('/Shift/AutoAssignByTemplate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name=__RequestVerificationToken]')?.value || ''
+                },
+                body: JSON.stringify({
+                    templateName: templateName,
+                    startDate: assignStart || null,
+                    endDate: assignEnd || null
+                })
+            });
+            if (resp.ok) {
+                const data = await resp.json().catch(() => ({}));
+                alert(data.message || 'Auto assignment completed!');
+                window.location.reload();
+            } else {
+                const err = await resp.text();
+                alert('Auto assign failed: ' + err);
+            }
+        } catch (ex) {
+            alert('Auto assign error: ' + ex);
+        } finally {
+            this.disabled = false;
+            this.textContent = 'Generate Shiftsheets';
+        }
+    });
+</script>

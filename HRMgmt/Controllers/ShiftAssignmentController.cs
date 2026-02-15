@@ -21,7 +21,9 @@ namespace HRMgmt.Controllers
         // GET: ShiftAssignment
         public async Task<IActionResult> Index()
         {
-            return View(await _context.ShiftAssignments.ToListAsync());
+            return View(await _context.ShiftAssignments
+                .OrderByDescending(s => s.ShiftDate)
+                .ToListAsync());
         }
 
         // GET: ShiftAssignment/Details/5
@@ -45,6 +47,7 @@ namespace HRMgmt.Controllers
         // GET: ShiftAssignment/Create
         public IActionResult Create()
         {
+            PopulateSelectLists();
             return View();
         }
 
@@ -53,7 +56,7 @@ namespace HRMgmt.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,ShiftId,UserId")] ShiftAssignment shiftAssignment)
+        public async Task<IActionResult> Create([Bind("Id,ShiftId,UserId,ShiftDate")] ShiftAssignment shiftAssignment)
         {
             if (ModelState.IsValid)
             {
@@ -61,6 +64,7 @@ namespace HRMgmt.Controllers
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
+            PopulateSelectLists(shiftAssignment.ShiftId, shiftAssignment.UserId);
             return View(shiftAssignment);
         }
 
@@ -77,6 +81,7 @@ namespace HRMgmt.Controllers
             {
                 return NotFound();
             }
+            PopulateSelectLists(shiftAssignment.ShiftId, shiftAssignment.UserId);
             return View(shiftAssignment);
         }
 
@@ -85,7 +90,7 @@ namespace HRMgmt.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,ShiftId,UserId")] ShiftAssignment shiftAssignment)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,ShiftId,UserId,ShiftDate")] ShiftAssignment shiftAssignment)
         {
             if (id != shiftAssignment.Id)
             {
@@ -112,6 +117,7 @@ namespace HRMgmt.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
+            PopulateSelectLists(shiftAssignment.ShiftId, shiftAssignment.UserId);
             return View(shiftAssignment);
         }
 
@@ -151,6 +157,26 @@ namespace HRMgmt.Controllers
         private bool ShiftAssignmentExists(int id)
         {
             return _context.ShiftAssignments.Any(e => e.Id == id);
+        }
+
+        private void PopulateSelectLists(object? selectedShiftId = null, object? selectedUserId = null)
+        {
+            ViewData["ShiftId"] = new SelectList(
+                _context.Shifts
+                    .OrderBy(s => s.Name)
+                    .Select(s => new { s.ShiftId, Label = s.Name }),
+                "ShiftId",
+                "Label",
+                selectedShiftId);
+
+            ViewData["UserId"] = new SelectList(
+                _context.Users
+                    .OrderBy(u => u.FirstName)
+                    .ThenBy(u => u.LastName)
+                    .Select(u => new { u.UserId, Label = u.FirstName + " " + u.LastName }),
+                "UserId",
+                "Label",
+                selectedUserId);
         }
     }
 }

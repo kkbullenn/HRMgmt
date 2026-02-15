@@ -10,8 +10,8 @@ namespace HRMgmt
         public DbSet<User> Users { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<Shift> Shifts { get; set; }
-        public DbSet<EmployeeShift> EmployeeShifts { get; set; }
         public DbSet<ShiftAssignment> ShiftAssignments { get; set; }
+        public DbSet<SchedulingTemplate> SchedulingTemplates { get; set; }
         public DbSet<Payroll> Payrolls { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -23,16 +23,6 @@ namespace HRMgmt
                 .WithMany()               
                 .HasForeignKey(u => u.Role);
 
-            modelBuilder.Entity<EmployeeShift>()
-                .HasOne<User>()
-                .WithMany()
-                .HasForeignKey(es => es.UserId);
-
-            modelBuilder.Entity<EmployeeShift>()
-                .HasOne<Shift>()
-                .WithMany(s => s.EmployeeShifts)
-                .HasForeignKey(es => es.ShiftId);
-
             modelBuilder.Entity<ShiftAssignment>()
                 .HasOne<User>()
                 .WithMany()
@@ -40,7 +30,7 @@ namespace HRMgmt
 
             modelBuilder.Entity<ShiftAssignment>()
                 .HasOne<Shift>()
-                .WithMany()
+                .WithMany(s => s.ShiftAssignment)
                 .HasForeignKey(sa => sa.ShiftId);
 
             modelBuilder.Entity<Payroll>()
