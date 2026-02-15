@@ -1,5 +1,8 @@
+/* Base Layout & Responsive */
 html {
   font-size: 14px;
+  position: relative;
+  min-height: 100%;
 }
 
 @media (min-width: 768px) {
@@ -8,24 +11,174 @@ html {
   }
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
-}
-
 body {
   margin-bottom: 60px;
+  font-family: 'Segoe UI', sans-serif;
+  line-height: 1.6;
+  background-color: #f4f2fb;
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+
+/* Global Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+
+/* Bootstrap Form Floating Fix */
+.form-floating > .form-control-plaintext::placeholder,
+.form-floating > .form-control::placeholder {
   color: var(--bs-secondary-color);
   text-align: end;
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+.form-floating > .form-control-plaintext:focus::placeholder,
+.form-floating > .form-control:focus::placeholder {
   text-align: start;
 }
+
+
+/* Design System Variables */
+:root {
+  --primary: #7c5cff;
+  --primary-light: #ede9fe;
+  --primary-hover: #6d4cff;
+
+  --shift-clerk: #c7dbff;
+  --shift-cashier: #f7c38f;
+  --shift-manager: #f6e39c;
+
+  --text-main: #2d2d2d;
+  --text-muted: #6b7280;
+
+  --surface: #ffffff;
+  --border-light: #eceaf5;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --shadow-soft: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+
+/* Typography */
+h1, h2, h3, h4 {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+p {
+  color: var(--text-main);
+}
+
+.text-muted {
+  color: var(--text-muted) !important;
+}
+
+
+/* Buttons */
+.btn {
+  border-radius: var(--radius-md);
+  transition: 0.2s ease;
+  font-weight: 500;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.btn-outline-primary {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--primary-light);
+}
+
+.btn-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-soft);
+}
+
+
+/* Navigation */
+.navbar {
+  background-color: #e9e9e9;
+  box-shadow: var(--shadow-soft);
+}
+
+.nav-link {
+  color: var(--text-main) !important;
+  font-weight: 500;
+}
+
+.nav-link.active {
+  color: var(--primary) !important;
+}
+
+
+/* Card */
+.card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-soft);
+  background: var(--surface);
+}
+
+
+/* Form */
+.form-control {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 0.15rem rgba(124,92,255,0.2);
+}
+
+
+/* Schedule */
+.schedule-header {
+  background: linear-gradient(to right, #e9ddff, #d8c8ff);
+  color: var(--primary);
+  font-weight: 600;
+  text-align: center;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+}
+
+.shift-block {
+  padding: 0.6rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  box-shadow: var(--shadow-soft);
+  margin-bottom: 0.5rem;
+}
+
+.shift-clerk { background-color: var(--shift-clerk); }
+.shift-cashier { background-color: var(--shift-cashier); }
+.shift-manager { background-color: var(--shift-manager); }
+
+
+/* Utility */
+.mt-6 { margin-top: 3rem; }
+.mb-6 { margin-bottom: 3rem; }
+
+.rounded-lg { border-radius: var(--radius-lg); }
+.shadow-soft { box-shadow: var(--shadow-soft); }

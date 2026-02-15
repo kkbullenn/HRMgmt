@@ -1,0 +1,15 @@
+.landing-page {
+    min-height: 100vh;
+}
+
+.landing-container {
+    min-height: 100vh;
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+    padding: 3rem;
+}
+
+.landing-message {
+    text-align: right;
+}

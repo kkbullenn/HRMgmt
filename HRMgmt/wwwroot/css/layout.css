@@ -1,0 +1,93 @@
+﻿/* Overall Page Layout */
+.layout-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  padding: 3rem 1.5rem;
+}
+
+.content-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+
+/* Navbar Layout */
+.navbar {
+  padding: 0.8rem 2rem;
+}
+
+.navbar .container-fluid {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navbar-nav {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-nav .nav-link {
+  margin-right: 2rem;
+}
+
+
+/* Shifts Panel Layout */
+.shift-panel-wrapper {
+  padding: 1.5rem;
+  border-radius: 24px;
+}
+
+.shift-panel {
+  padding: 2rem;
+}
+
+.shift-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.shift-header .filters {
+  display: flex;
+  gap: 1rem;
+}
+
+
+/* Table Layout */
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.table {
+  margin-bottom: 0;
+}
+
+.table th,
+.table td {
+  vertical-align: middle;
+  padding: 0.9rem 1rem;
+}
+
+
+/* Floating Create Button Layout */
+.create-shift-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
+
+/* Footer */
+.footer {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
