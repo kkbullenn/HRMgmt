@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -56,15 +57,17 @@ namespace HRMgmt
         }
 
         [HttpGet]
-        public JsonResult GetTemplateData(string name)
+        public JsonResult GetTemplateData(string name, int? weekType = null, int? weekIndex = null)
         {
             if (string.IsNullOrWhiteSpace(name))
             {
                 return Json(new { templateName = "", weekType = 1, weekIndex = 0, grid = new List<string>() });
             }
 
-            var latest = _context.SchedulingTemplates
-                .Where(t => t.TemplateName == name)
+            var templateQuery = _context.SchedulingTemplates
+                .Where(t => t.TemplateName == name);
+
+            var latest = templateQuery
                 .OrderByDescending(t => t.Id)
                 .FirstOrDefault();
             if (latest == null)
@@ -72,9 +75,45 @@ namespace HRMgmt
                 return Json(new { templateName = name, weekType = 1, weekIndex = 0, grid = new List<string>() });
             }
 
+            int resolvedWeekType;
+            int resolvedWeekIndex;
+            if (weekType.HasValue || weekIndex.HasValue)
+            {
+                resolvedWeekType = weekType ?? latest.WeekType;
+                resolvedWeekIndex = weekIndex ?? latest.WeekIndex;
+            }
+            else
+            {
+                // Default open behavior: always prefer Week 1 first.
+                if (templateQuery.Any(t => t.WeekType == 2 && t.WeekIndex == 0))
+                {
+                    resolvedWeekType = 2;
+                    resolvedWeekIndex = 0;
+                }
+                else if (templateQuery.Any(t => t.WeekType == 1 && t.WeekIndex == 0))
+                {
+                    resolvedWeekType = 1;
+                    resolvedWeekIndex = 0;
+                }
+                else
+                {
+                    resolvedWeekType = latest.WeekType;
+                    resolvedWeekIndex = latest.WeekIndex;
+                }
+            }
+
+            if (resolvedWeekType == 1)
+            {
+                resolvedWeekIndex = 0;
+            }
+            else
+            {
+                resolvedWeekIndex = resolvedWeekIndex <= 0 ? 0 : 1;
+            }
+
             var users = _context.Users.OrderBy(u => u.UserId).ToList();
-            var rows = _context.SchedulingTemplates
-                .Where(t => t.TemplateName == name && t.WeekType == latest.WeekType && t.WeekIndex == latest.WeekIndex)
+            var rows = templateQuery
+                .Where(t => t.WeekType == resolvedWeekType && t.WeekIndex == resolvedWeekIndex)
                 .ToList();
 
             var lookup = rows.ToDictionary(
@@ -95,15 +134,15 @@ namespace HRMgmt
             return Json(new
             {
                 templateName = name,
-                weekType = latest.WeekType,
-                weekIndex = latest.WeekIndex,
+                weekType = resolvedWeekType,
+                weekIndex = resolvedWeekIndex,
                 grid
             });
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult SaveShiftTemplate([FromForm] EmployeeShiftGridViewModel model, string templateName, int weekType = 1, int weekIndex = 0)
+        public IActionResult SaveShiftTemplate([FromForm] EmployeeShiftGridViewModel model, string templateName, int weekType = 1, int weekIndex = 0, string? allWeeksGridJson = null, string? originalTemplateName = null)
         {
             if (string.IsNullOrWhiteSpace(templateName))
             {
@@ -111,48 +150,105 @@ namespace HRMgmt
                 return RedirectToAction(nameof(ShiftAssignment));
             }
 
-            var userIds = model.Users?.Select(u => u.UserId).ToList() ?? new List<Guid>();
-            var grid = model.Grid ?? new List<string>();
-            var expected = userIds.Count * 7;
-            if (grid.Count < expected)
+            templateName = templateName.Trim();
+            originalTemplateName = (originalTemplateName ?? string.Empty).Trim();
+
+            var templateExists = _context.SchedulingTemplates.Any(t => t.TemplateName == templateName);
+            var isCreateFlow = string.IsNullOrWhiteSpace(originalTemplateName);
+            if (isCreateFlow && templateExists)
             {
-                grid.AddRange(Enumerable.Repeat(string.Empty, expected - grid.Count));
-            }
-            else if (grid.Count > expected && expected > 0)
-            {
-                grid = grid.Take(expected).ToList();
+                TempData["Error"] = $"Template name \"{templateName}\" already exists. Please choose a different name.";
+                return RedirectToAction(nameof(ShiftAssignment));
             }
 
+            var userIds = model.Users?.Select(u => u.UserId).ToList() ?? new List<Guid>();
+            var expected = userIds.Count * 7;
+
+            List<string> NormalizeGrid(List<string>? source)
+            {
+                var normalized = source ?? new List<string>();
+                if (normalized.Count < expected)
+                {
+                    normalized.AddRange(Enumerable.Repeat(string.Empty, expected - normalized.Count));
+                }
+                else if (normalized.Count > expected && expected > 0)
+                {
+                    normalized = normalized.Take(expected).ToList();
+                }
+                return normalized;
+            }
+
+            var gridsToSave = new List<(int WeekType, int WeekIndex, List<string> Grid)>();
+
+            if (!string.IsNullOrWhiteSpace(allWeeksGridJson))
+            {
+                try
+                {
+                    var payload = JsonSerializer.Deserialize<List<WeekGridPayload>>(allWeeksGridJson) ?? new List<WeekGridPayload>();
+                    foreach (var item in payload)
+                    {
+                        if (item == null) continue;
+                        var payloadWeekType = item.weekType == 2 ? 2 : 1;
+                        var payloadWeekIndex = item.weekIndex <= 0 ? 0 : 1;
+                        if (payloadWeekType == 1) payloadWeekIndex = 0;
+                        gridsToSave.Add((payloadWeekType, payloadWeekIndex, NormalizeGrid(item.grid)));
+                    }
+                }
+                catch
+                {
+                    // Fallback to current posted grid below.
+                }
+            }
+
+            if (gridsToSave.Count == 0)
+            {
+                var fallbackWeekType = weekType == 2 ? 2 : 1;
+                var fallbackWeekIndex = fallbackWeekType == 1 ? 0 : (weekIndex <= 0 ? 0 : 1);
+                gridsToSave.Add((fallbackWeekType, fallbackWeekIndex, NormalizeGrid(model.Grid)));
+            }
+
+            // Deduplicate by (WeekType, WeekIndex), keep the last submitted grid.
+            gridsToSave = gridsToSave
+                .GroupBy(g => new { g.WeekType, g.WeekIndex })
+                .Select(g => g.Last())
+                .ToList();
+
             var oldRows = _context.SchedulingTemplates
-                .Where(t => t.TemplateName == templateName && t.WeekType == weekType && t.WeekIndex == weekIndex)
+                .Where(t => t.TemplateName == templateName && t.WeekType == weekType)
                 .ToList();
             if (oldRows.Count > 0)
             {
                 _context.SchedulingTemplates.RemoveRange(oldRows);
+                // Flush deletes first to avoid unique-key collisions when re-inserting same cells.
+                _context.SaveChanges();
             }
 
-            for (var i = 0; i < userIds.Count; i++)
+            foreach (var block in gridsToSave)
             {
-                for (var j = 0; j < 7; j++)
+                for (var i = 0; i < userIds.Count; i++)
                 {
-                    var idx = i * 7 + j;
-                    if (idx >= grid.Count) continue;
-                    var shiftType = (grid[idx] ?? string.Empty).Trim();
-                    if (string.IsNullOrEmpty(shiftType)) continue;
-
-                    _context.SchedulingTemplates.Add(new SchedulingTemplate
+                    for (var j = 0; j < 7; j++)
                     {
-                        TemplateName = templateName.Trim(),
-                        UserId = userIds[i],
-                        WeekType = weekType,
-                        WeekIndex = weekIndex,
-                        DayOfWeek = DaysOfWeek[j],
-                        ShiftType = shiftType
-                    });
+                        var idx = i * 7 + j;
+                        if (idx >= block.Grid.Count) continue;
+                        var shiftIdRaw = (block.Grid[idx] ?? string.Empty).Trim();
+                        if (!Guid.TryParse(shiftIdRaw, out var shiftId)) continue;
+
+                        _context.SchedulingTemplates.Add(new SchedulingTemplate
+                        {
+                            TemplateName = templateName,
+                            UserId = userIds[i],
+                            WeekType = block.WeekType,
+                            WeekIndex = block.WeekIndex,
+                            DayOfWeek = DaysOfWeek[j],
+                            ShiftType = shiftId.ToString()
+                        });
+                    }
                 }
             }
 
             _context.SaveChanges();
+            TempData["Success"] = $"{templateName} saved successfully.";
 
             return RedirectToAction(nameof(ShiftAssignment));
         }
@@ -179,47 +275,98 @@ namespace HRMgmt
                 return Json(new { success = false, message = "No shifts found in the system." });
             }
 
-            // If range is not provided, fallback to the min/max range from Shift table.
-            var effectiveStart = dto.startDate?.Date ?? shifts.Min(s => s.StartDate.Date);
-            var effectiveEnd = dto.endDate?.Date ?? shifts.Max(s => s.EndDate.Date);
+            // Template-driven generation: only depend on template + date range.
+            var effectiveStart = dto.startDate?.Date ?? DateTime.Today;
+            var effectiveEnd = dto.endDate?.Date ?? effectiveStart.AddDays(13);
             if (effectiveEnd < effectiveStart)
             {
                 return Json(new { success = false, message = "End date must be on or after start date." });
             }
+            var startDateOnly = DateOnly.FromDateTime(effectiveStart);
+            var endDateOnly = DateOnly.FromDateTime(effectiveEnd);
 
-            var shiftsInRange = shifts
-                .Where(s => s.StartDate.Date <= effectiveEnd && s.EndDate.Date >= effectiveStart)
-                .ToList();
-            if (shiftsInRange.Count == 0)
+            // Block repeated publishes for overlapping date ranges of the same template.
+            var overlapLog = _context.TemplateGenerationLogs
+                .Where(l =>
+                    l.TemplateName == dto.templateName &&
+                    startDateOnly <= l.EndDate &&
+                    endDateOnly >= l.StartDate)
+                .OrderByDescending(l => l.GeneratedAt)
+                .FirstOrDefault();
+            if (overlapLog != null)
             {
-                return Json(new { success = false, message = "No shifts match the selected assignment range." });
+                return Json(new
+                {
+                    success = false,
+                    message = $"This template has already been generated for an overlapping date range (existing: {overlapLog.StartDate:yyyy-MM-dd} to {overlapLog.EndDate:yyyy-MM-dd})."
+                });
+            }
+
+            var shiftMap = shifts.ToDictionary(s => s.ShiftId, s => s);
+            var isBiweekly = dto.weekType == 2;
+            var weeklyRows = templateRows.Where(r => r.WeekType == 1).ToList();
+            var biweeklyRows = templateRows.Where(r => r.WeekType == 2).ToList();
+
+            if (isBiweekly)
+            {
+                // Require both weeks for biweekly generation.
+                var hasWeek1 = biweeklyRows.Any(r => r.WeekIndex == 0);
+                var hasWeek2 = biweeklyRows.Any(r => r.WeekIndex == 1);
+                if (!hasWeek1 || !hasWeek2)
+                {
+                    return Json(new
+                    {
+                        success = false,
+                        message = "Biweekly generation requires both Week 1 and Week 2 templates."
+                    });
+                }
+            }
+            else if (weeklyRows.Count == 0)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Weekly generation requires a Weekly template (Week Type = Weekly)."
+                });
             }
 
             var added = 0;
+            // Simplest rule: one user can only have one shift per day.
+            var existingUserDateKeys = new HashSet<string>(
+                _context.ShiftAssignments
+                    .Select(sa => $"{sa.UserId}_{sa.ShiftDate:yyyy-MM-dd}")
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase);
+
             for (var date = effectiveStart; date <= effectiveEnd; date = date.AddDays(1))
             {
                 var dayName = date.DayOfWeek.ToString();
-                var biWeekIndex = ((date - effectiveStart).Days / 7) % 2;
-                var weekType = biWeekIndex == 0 ? 1 : 2;
-                var weekIndex = biWeekIndex;
+                var weekIndex = ((date - effectiveStart).Days / 7) % 2;
                 var shiftDate = DateOnly.FromDateTime(date);
-
-                var rowsForDay = templateRows.Where(r =>
-                    r.DayOfWeek.Equals(dayName, StringComparison.OrdinalIgnoreCase) &&
-                    r.WeekType == weekType &&
-                    r.WeekIndex == weekIndex);
+                IEnumerable<SchedulingTemplate> rowsForDay;
+                if (isBiweekly)
+                {
+                    rowsForDay = biweeklyRows.Where(r =>
+                        r.DayOfWeek.Equals(dayName, StringComparison.OrdinalIgnoreCase) &&
+                        r.WeekIndex == weekIndex);
+                }
+                else
+                {
+                    rowsForDay = weeklyRows.Where(r =>
+                        r.DayOfWeek.Equals(dayName, StringComparison.OrdinalIgnoreCase));
+                }
 
                 foreach (var row in rowsForDay)
                 {
-                    var shiftType = (row.ShiftType ?? string.Empty).Trim().ToLowerInvariant();
-                    if (string.IsNullOrEmpty(shiftType))
+                    var shiftIdRaw = (row.ShiftType ?? string.Empty).Trim();
+                    if (!Guid.TryParse(shiftIdRaw, out var shiftId))
                     {
                         continue;
                     }
 
-                    var shift = shiftsInRange
-                        .FirstOrDefault(s => s.Name.Trim().Equals(shiftType, StringComparison.OrdinalIgnoreCase));
-                    if (shift == null) continue;
+                    if (!shiftMap.TryGetValue(shiftId, out var shift)) continue;
+                    var userDateKey = $"{row.UserId}_{shiftDate:yyyy-MM-dd}";
+                    if (existingUserDateKeys.Contains(userDateKey)) continue;
 
                     var exists = _context.ShiftAssignments.Any(sa =>
                         sa.UserId == row.UserId &&
@@ -233,10 +380,21 @@ namespace HRMgmt
                         ShiftId = shift.ShiftId,
                         ShiftDate = shiftDate
                     });
+                    existingUserDateKeys.Add(userDateKey);
                     added++;
                 }
             }
 
+            _context.SaveChanges();
+            _context.TemplateGenerationLogs.Add(new TemplateGenerationLog
+            {
+                TemplateName = dto.templateName.Trim(),
+                WeekType = dto.weekType == 2 ? 2 : 1,
+                StartDate = startDateOnly,
+                EndDate = endDateOnly,
+                GeneratedAt = DateTime.UtcNow,
+                GeneratedCount = added
+            });
             _context.SaveChanges();
             return Json(new
             {
@@ -244,6 +402,28 @@ namespace HRMgmt
                 count = added,
                 message = $"Template applied using range {effectiveStart:yyyy-MM-dd} to {effectiveEnd:yyyy-MM-dd}."
             });
+        }
+
+        [HttpPost]
+        public JsonResult DeleteTemplate([FromBody] DeleteTemplateDto dto)
+        {
+            var templateName = dto?.templateName?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(templateName))
+            {
+                return Json(new { success = false, message = "Template name is required." });
+            }
+
+            var rows = _context.SchedulingTemplates
+                .Where(t => t.TemplateName == templateName)
+                .ToList();
+            if (rows.Count == 0)
+            {
+                return Json(new { success = false, message = "Template not found." });
+            }
+
+            _context.SchedulingTemplates.RemoveRange(rows);
+            _context.SaveChanges();
+            return Json(new { success = true, message = $"Template \"{templateName}\" deleted.", count = rows.Count });
         }
 
         // GET: Shift/Details/5
@@ -267,7 +447,14 @@ namespace HRMgmt
         // GET: Shift/Create
         public IActionResult Create()
         {
-            return View();
+            var model = new Shift
+            {
+                StartDate = DateTime.Today,
+                EndDate = DateTime.Today,
+                RecurrenceType = RecurrenceType.Daily,
+                RecurrenceDays = string.Empty
+            };
+            return View(model);
         }
 
         // POST: Shift/Create
@@ -277,6 +464,15 @@ namespace HRMgmt
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("ShiftId,Name,RequiredCount,StartTime,EndTime,StartDate,EndDate,RecurrenceType,RecurrenceDays")] Shift shift)
         {
+            // UI currently hides recurrence inputs; keep safe defaults for validation/persistence.
+            if (!Enum.IsDefined(typeof(RecurrenceType), shift.RecurrenceType))
+            {
+                shift.RecurrenceType = RecurrenceType.Daily;
+            }
+            shift.RecurrenceDays ??= string.Empty;
+            ModelState.Remove(nameof(Shift.RecurrenceType));
+            ModelState.Remove(nameof(Shift.RecurrenceDays));
+
             if (ModelState.IsValid)
             {
                 shift.ShiftId = Guid.NewGuid();
@@ -314,6 +510,14 @@ namespace HRMgmt
             {
                 return NotFound();
             }
+
+            if (!Enum.IsDefined(typeof(RecurrenceType), shift.RecurrenceType))
+            {
+                shift.RecurrenceType = RecurrenceType.Daily;
+            }
+            shift.RecurrenceDays ??= string.Empty;
+            ModelState.Remove(nameof(Shift.RecurrenceType));
+            ModelState.Remove(nameof(Shift.RecurrenceDays));
 
             if (ModelState.IsValid)
             {
@@ -381,6 +585,19 @@ namespace HRMgmt
             public DateTime? startDate { get; set; }
             public DateTime? endDate { get; set; }
             public string templateName { get; set; } = string.Empty;
+            public int weekType { get; set; } = 1;
+        }
+
+        public sealed class DeleteTemplateDto
+        {
+            public string templateName { get; set; } = string.Empty;
+        }
+
+        private sealed class WeekGridPayload
+        {
+            public int weekType { get; set; }
+            public int weekIndex { get; set; }
+            public List<string> grid { get; set; } = new();
         }
     }
 }

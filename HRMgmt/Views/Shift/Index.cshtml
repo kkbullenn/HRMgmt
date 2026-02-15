@@ -1,27 +1,24 @@
 @model IEnumerable<HRMgmt.Models.Shift>
 @{
-    ViewData["Title"] = "Shift Template List";
+    ViewData["Title"] = "Shift List";
     var action = (ViewContext.RouteData.Values["action"]?.ToString() ?? "");
+    var hasShifts = Model?.Any() == true;
 }
 
 <div class="row">
-    <aside class="col-md-3 col-lg-2 mb-3">
-        <div class="list-group">
-            <a asp-controller="Shift" asp-action="Index"
-               class="list-group-item list-group-item-action @(action == "Index" ? "active" : "")">
-                Shifts
-            </a>
-            <a asp-controller="Shift" asp-action="ShiftAssignment"
-               class="list-group-item list-group-item-action @(action == "ShiftAssignment" ? "active" : "")">
-                Shift Assignment
-            </a>
-        </div>
-    </aside>
-
-    <section class="col-md-9 col-lg-10">
-        <h2>Shift Template List</h2>
-        <p>
-            <a class="btn btn-primary" asp-action="Create">Create Shift Template</a>
+    <section class="col-12">
+        <h2>Shift List</h2>
+        <p class="d-flex align-items-center gap-2 flex-wrap">
+            <a class="btn btn-primary" asp-action="Create">Create Shift</a>
+            @if (hasShifts)
+            {
+                <a class="btn btn-success" asp-controller="Shift" asp-action="ShiftAssignment">Next: Assign Schedule</a>
+            }
+            else
+            {
+                <button class="btn btn-success" type="button" disabled>Next: Assign Schedule</button>
+                <span class="text-muted">Create at least one shift first.</span>
+            }
         </p>
         <table class="table">
             <thead>
@@ -32,8 +29,8 @@
                     <th>Required Count</th>
                     <th>Start Date</th>
                     <th>End Date</th>
-                    <th>Recurrence Type</th>
-                    <th>Recurrence Days</th>
+                    @* <th>Recurrence Type</th>
+                    <th>Recurrence Days</th> *@
                     <th></th>
                 </tr>
             </thead>
@@ -47,7 +44,7 @@
                 <td>@item.RequiredCount</td>
                 <td>@item.StartDate.ToString("yyyy-MM-dd")</td>
                 <td>@item.EndDate.ToString("yyyy-MM-dd")</td>
-                <td>@item.RecurrenceType</td>
+                @* <td>@item.RecurrenceType</td>
                 <td>
                     @if (!string.IsNullOrEmpty(item.RecurrenceDays))
                     {
@@ -56,7 +53,7 @@
                             @day <br />
                         }
                     }
-                </td>
+                </td> *@
                 <td>
                     <a asp-action="Edit" asp-route-id="@item.ShiftId">Edit</a> |
                     <a asp-action="Details" asp-route-id="@item.ShiftId">Details</a> |
