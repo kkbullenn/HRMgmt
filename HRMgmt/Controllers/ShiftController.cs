@@ -14,7 +14,7 @@ namespace HRMgmt
     public class ShiftController : Controller
     {
         private readonly OrgDbContext _context;
-        private static readonly string[] DaysOfWeek = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
+        private static readonly string[] DaysOfWeek = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday","Sunday" };
 
         public ShiftController(OrgDbContext context)
         {
@@ -53,7 +53,7 @@ namespace HRMgmt
 
         public IActionResult EmployeeShift()
         {
-            return RedirectToAction(nameof(ShiftAssignment));
+            return View("~/Views/ShiftAssignment/EmployeeShift.cshtml");
         }
 
         [HttpGet]
@@ -339,7 +339,7 @@ namespace HRMgmt
                 if (rangeEnd < rangeStart) continue;
                 for (var date = rangeStart; date <= rangeEnd; date = date.AddDays(1))
                 {
-                    var dayName = DaysOfWeek[(int)date.DayOfWeek];
+                    var dayName = date.DayOfWeek.ToString();
                     bool match = false;
                     if (isBiweekly && row.WeekType == 2)
                     {
@@ -419,7 +419,7 @@ namespace HRMgmt
                 .ToList();
             if (rows.Count == 0)
             {
-                return Json(new { success = false, message = "Template not found." });
+                return Json(new { success = false, message = "Template is not found." });
             }
 
             _context.SchedulingTemplates.RemoveRange(rows);
@@ -456,6 +456,140 @@ namespace HRMgmt
                 RecurrenceDays = string.Empty
             };
             return View(model);
+        }
+
+        // ================= EMPLOYEE SHIFT APIs =================
+
+        // Get all employees (for frontend dropdown)
+        [HttpGet]
+        public JsonResult GetEmployees()
+        {
+            var users = _context.Users.Select(u => new
+            {
+                id = u.UserId,
+                name = u.FirstName + " " + u.LastName
+            }).ToList();
+            return Json(users);
+        }
+
+        // Get shifts for a specific employee (for calendar events)
+        [HttpGet]
+        public JsonResult GetEmployeeShifts(Guid employeeId)
+        {
+            var assignments = _context.ShiftAssignments
+                .Where(sa => sa.UserId == employeeId)
+                .Join(_context.Shifts, sa => sa.ShiftId, s => s.ShiftId, (sa, s) => new
+                {
+                    id = sa.ShiftId,
+                    title = s.Name + " " + s.StartTime.ToString(@"hh\:mm") + "-" + s.EndTime.ToString(@"hh\:mm"),
+                    start = sa.ShiftDate.ToString("yyyy-MM-dd"),
+                    end = sa.ShiftDate.ToString("yyyy-MM-dd")
+                }).ToList();
+
+            return Json(assignments);
+        }
+
+        // FullCalendar: get all shifts
+        [HttpGet]
+        public JsonResult GetShifts()
+        {
+            var shifts = _context.Shifts.Select(s => new
+            {
+                id = s.ShiftId,
+                title = s.Name,
+                start = s.StartTime.ToString(@"hh\:mm"),
+                end = s.EndTime.ToString(@"hh\:mm")
+            }).ToList();
+
+            return Json(shifts);
+        }
+
+        // Assign a shift to an employee
+        [HttpPost]
+        public JsonResult AssignShift([FromBody] AssignShiftDto dto)
+        {
+            try
+            {
+                var exists = _context.ShiftAssignments.Any(sa =>
+                    sa.UserId == dto.UserId &&
+                    sa.ShiftDate == DateOnly.FromDateTime(dto.Date));
+
+                if (exists)
+                {
+                    return Json(new { success = false, message = "This user already has a shift on that date." });
+                }
+
+                var assignment = new ShiftAssignment
+                {
+                    ShiftId = dto.ShiftId,
+                    UserId = dto.UserId,
+                    ShiftDate = DateOnly.FromDateTime(dto.Date)
+                };
+
+                _context.ShiftAssignments.Add(assignment);
+
+                try
+                {
+                    _context.SaveChanges();
+                }
+                catch (Exception dbEx)
+                {
+                    var values = new Dictionary<string, object>
+                    {
+                        {"dto.UserId", dto.UserId},
+                        {"dto.ShiftId", dto.ShiftId},
+                        {"dto.Date", dto.Date},
+                        {"assignment.ShiftDate", assignment.ShiftDate},
+                        {"assignment.UserId", assignment.UserId},
+                        {"assignment.ShiftId", assignment.ShiftId}
+                    };
+                    return Json(new {
+                        success = false,
+                        message = "DB error: " + dbEx.Message,
+                        inner = dbEx.InnerException?.Message,
+                        values
+                    });
+                }
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        public class AssignShiftDto
+        {
+            public Guid UserId { get; set; }
+            public Guid ShiftId { get; set; }
+            public DateTime Date { get; set; }
+        }
+
+        // Delete shift assignment
+        [HttpPost]
+        public JsonResult DeleteEmployeeShift([FromBody] DeleteEmployeeShiftDto dto)
+        {
+            var assignment = _context.ShiftAssignments
+                .FirstOrDefault(sa =>
+                    sa.UserId == dto.UserId &&
+                    sa.ShiftId == dto.ShiftId &&
+                    sa.ShiftDate == DateOnly.FromDateTime(dto.Date));
+
+            if (assignment == null)
+                return Json(new { success = false, message = "Shift assignment not found." });
+
+            _context.ShiftAssignments.Remove(assignment);
+            _context.SaveChanges();
+
+            return Json(new { success = true });
+        }
+
+        public class DeleteEmployeeShiftDto
+        {
+            public Guid UserId { get; set; }
+            public Guid ShiftId { get; set; }
+            public DateTime Date { get; set; }
         }
 
         // POST: Shift/Create
