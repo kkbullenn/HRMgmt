@@ -1,0 +1,54 @@
+@{
+    ViewData["Title"] = "Create Account";
+}
+
+<div class="row justify-content-center mt-4">
+    <div class="col-md-5">
+        <h3 class="text-center mb-4">Create New Account</h3>
+
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success">@TempData["Success"]</div>
+        }
+
+        @if (ViewBag.Error != null)
+        {
+            <div class="alert alert-danger">@ViewBag.Error</div>
+        }
+
+        <form method="post" asp-controller="Account" asp-action="Create">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" class="form-control" id="username" name="username" required />
+            </div>
+
+            <div class="mb-3">
+                <label for="displayName" class="form-label">Display Name</label>
+                <input type="text" class="form-control" id="displayName" name="displayName" placeholder="Optional" />
+            </div>
+
+            <div class="mb-3">
+                <label for="role" class="form-label">Role</label>
+                <select class="form-select" id="role" name="role" required>
+                    <option value="">-- Select Role --</option>
+                    <option value="Employee">Employee</option>
+                    <option value="HR">HR</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Admin">Admin</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required minlength="6" />
+                <div class="form-text">At least 6 characters.</div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Create Account</button>
+        </form>
+
+        <div class="text-center mt-3">
+            <a asp-controller="Home" asp-action="Index">Back to Home</a>
+        </div>
+    </div>
+</div>

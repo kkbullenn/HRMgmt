@@ -10,15 +10,13 @@ namespace HRMgmt.Models
     public class Shift
     {
         [Key]
-        public Guid ID { get; set; }
+        public Guid ShiftId { get; set; }
 
         [Required]
         public string Name { get; set; }
 
-        public int RequiredCount { get; set; }
-
         [Required]
-        public string Location { get; set; }
+        public int RequiredCount { get; set; }
 
         [Required]
         public TimeSpan StartTime { get; set; } // 08:00
@@ -36,9 +34,8 @@ namespace HRMgmt.Models
         public RecurrenceType RecurrenceType { get; set; }
 
         public string RecurrenceDays { get; set; }
-        public int Interval { get; set; }
 
-        public ICollection<EmployeeShift>? EmployeeShifts { get; set; }
+        public ICollection<ShiftAssignment>? ShiftAssignment { get; set; }
         
     }
 
@@ -53,11 +50,15 @@ namespace HRMgmt.Models
 
     public class EmployeeShift
     {
-        public Guid EmployeeId { get; set; }
-        public Employee Employee { get; set; }
+        [Key]
+        public Guid EmployeeShiftId { get; set; }
 
+
+        [Required]
         public Guid ShiftId { get; set; }
-        public Shift Shift { get; set; }
+
+        [Required]
+        public Guid UserId { get; set; }
 
         [Required]
         public DateTime Date { get; set; }

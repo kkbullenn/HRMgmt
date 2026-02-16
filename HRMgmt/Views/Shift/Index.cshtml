@@ -1,0 +1,91 @@
+@model IEnumerable<HRMgmt.Models.Shift>
+@{
+    ViewData["Title"] = "Shift List";
+    var action = (ViewContext.RouteData.Values["action"]?.ToString() ?? "");
+    var hasShifts = Model?.Any() == true;
+}
+
+<div class="row">
+    <section class="col-12">
+        <h2>Shift List</h2>
+        <p class="d-flex align-items-center gap-2 flex-wrap">
+            <a class="btn btn-primary" asp-action="Create">Create Shift</a>
+            @if (hasShifts)
+            {
+                <a class="btn btn-success" asp-controller="Shift" asp-action="ShiftAssignment">Next: Assign Schedule</a>
+            }
+            else
+            {
+                <button class="btn btn-success" type="button" disabled>Next: Assign Schedule</button>
+                <span class="text-muted">Create at least one shift first.</span>
+            }
+        </p>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                    <th>Required Count</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    @* <th>Recurrence Type</th>
+                    <th>Recurrence Days</th> *@
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Name</td>
+                <td>@item.StartTime.ToString(@"hh\:mm")</td>
+                <td>@item.EndTime.ToString(@"hh\:mm")</td>
+                <td>@item.RequiredCount</td>
+                <td>@item.StartDate.ToString("yyyy-MM-dd")</td>
+                <td>@item.EndDate.ToString("yyyy-MM-dd")</td>
+                @* <td>@item.RecurrenceType</td>
+                <td>
+                    @if (!string.IsNullOrEmpty(item.RecurrenceDays))
+                    {
+                        foreach (var day in item.RecurrenceDays.Split(','))
+                        {
+                            @day <br />
+                        }
+                    }
+                </td> *@
+                <td>
+                    <a asp-action="Edit" asp-route-id="@item.ShiftId">Edit</a> |
+                    <a asp-action="Details" asp-route-id="@item.ShiftId">Details</a> |
+                    <a asp-action="Delete" asp-route-id="@item.ShiftId">Delete</a>
+                </td>
+            </tr>
+        }
+            </tbody>
+        </table>
+    </section>
+</div>
+
+<div class="mt-4" style="display:none;">
+    <button class="btn btn-success" onclick="autoGenerateSchedule()">Auto Assign Bi-weekly Shifts</button>
+</div>
+<script>
+function autoGenerateSchedule() {
+    const startDate = prompt('Please enter the start date for scheduling (yyyy-MM-dd):', new Date().toISOString().slice(0,10));
+    if (!startDate) return;
+    fetch('/Shift/AutoGenerateSchedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startDate: startDate, days: 14 })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Shifts generated successfully! Total: ' + data.count + ' records');
+        } else {
+            alert('Failed to generate shifts: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(e => alert('Request failed: ' + e));
+}
+</script>

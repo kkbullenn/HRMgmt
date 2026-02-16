@@ -4,14 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HRMgmt.Controllers
 {
-    public class HomeController(OrgDbContext context) : Controller
+    public class HomeController : Controller
     {
-        private readonly OrgDbContext _context = context;
-
         public IActionResult Index()
         {
-            ViewBag.UserRole = HttpContext.Session.GetString("UserRole");
-            ViewBag.UserName = HttpContext.Session.GetString("UserName");
             return View();
         }
 
