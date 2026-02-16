@@ -35,7 +35,7 @@ namespace HRMgmt.Models
 
         public string RecurrenceDays { get; set; }
 
-        public ICollection<EmployeeShift>? EmployeeShifts { get; set; }
+        public ICollection<ShiftAssignment>? ShiftAssignment { get; set; }
         
     }
 

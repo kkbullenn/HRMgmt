@@ -15,6 +15,8 @@ namespace HRMgmt.Models
 
         [Required]
         public Guid UserId { get; set; }
-        
+
+        [Required]
+        public DateOnly ShiftDate { get; set; }
     }
 }
