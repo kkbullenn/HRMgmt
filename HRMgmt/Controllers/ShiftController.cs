@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -24,13 +25,130 @@ namespace HRMgmt
         // GET: Shift
         public async Task<IActionResult> Index()
         {
+            var role = HttpContext.Session.GetString("UserRole");
+            if (!string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(role, "Employee", StringComparison.OrdinalIgnoreCase))
+                {
+                    return RedirectToAction(nameof(MyShifts));
+                }
+
+                return RedirectToAction("Index", "Home");
+            }
+
             return View(await _context.Shifts.ToListAsync());
+        }
+
+        // GET: Shift/MyShifts
+        // Employee-only view: list shifts for the current logged-in employee.
+        public async Task<IActionResult> MyShifts()
+        {
+            var role = HttpContext.Session.GetString("UserRole");
+            if (!string.Equals(role, "Employee", StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectToAction(nameof(Index));
+            }
+
+            var userId = await ResolveCurrentEmployeeUserIdAsync();
+            if (userId == null)
+            {
+                ViewBag.Error = "Unable to map this account to an employee record. Please ask HR to verify account/profile mapping.";
+                return View(new List<EmployeeShiftListItemViewModel>());
+            }
+
+            var employee = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.UserId == userId.Value);
+
+            if (employee == null)
+            {
+                ViewBag.Error = "Employee profile not found.";
+                return View(new List<EmployeeShiftListItemViewModel>());
+            }
+
+            var employeeName = $"{employee.FirstName} {employee.LastName}".Trim();
+            var relatedUserIds = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.FirstName == employee.FirstName && u.LastName == employee.LastName)
+                .Select(u => u.UserId)
+                .ToListAsync();
+
+            if (!relatedUserIds.Contains(userId.Value))
+            {
+                relatedUserIds.Add(userId.Value);
+            }
+
+            var shifts = await (
+                from sa in _context.ShiftAssignments.AsNoTracking()
+                join s in _context.Shifts.AsNoTracking() on sa.ShiftId equals s.ShiftId
+                where relatedUserIds.Contains(sa.UserId)
+                orderby sa.ShiftDate, s.StartTime
+                select new EmployeeShiftListItemViewModel
+                {
+                    Name = employeeName,
+                    ShiftName = s.Name,
+                    ShiftDate = sa.ShiftDate,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime
+                }).ToListAsync();
+
+            if (shifts.Count == 0)
+            {
+                var templates = await _context.SchedulingTemplates
+                    .AsNoTracking()
+                    .Where(t => relatedUserIds.Contains(t.UserId))
+                    .OrderBy(t => t.TemplateName)
+                    .ThenBy(t => t.WeekType)
+                    .ThenBy(t => t.WeekIndex)
+                    .ThenBy(t => t.DayOfWeek)
+                    .ToListAsync();
+
+                var shiftIds = templates
+                    .Select(t => t.ShiftType)
+                    .Distinct()
+                    .ToList();
+
+                var shiftLookup = await _context.Shifts
+                    .AsNoTracking()
+                    .Where(s => shiftIds.Contains(s.ShiftId.ToString()))
+                    .ToDictionaryAsync(s => s.ShiftId.ToString(), s => s);
+
+                var templateRows = new List<EmployeeShiftListItemViewModel>();
+                foreach (var template in templates)
+                {
+                    if (!shiftLookup.TryGetValue(template.ShiftType, out var shift))
+                    {
+                        continue;
+                    }
+
+                    if (!TryParseDayOfWeek(template.DayOfWeek, out var dayOfWeek))
+                    {
+                        continue;
+                    }
+
+                    templateRows.Add(new EmployeeShiftListItemViewModel
+                    {
+                        Name = template.TemplateName,
+                        ShiftName = shift.Name,
+                        ShiftDate = ResolveTemplateDate(dayOfWeek, template.WeekType, template.WeekIndex),
+                        StartTime = shift.StartTime,
+                        EndTime = shift.EndTime
+                    });
+                }
+
+                shifts = templateRows
+                    .OrderBy(x => x.ShiftDate)
+                    .ThenBy(x => x.StartTime)
+                    .ToList();
+            }
+
+            return View(shifts);
         }
 
         // GET: Shift/ShiftAssignment
         public IActionResult ShiftAssignment()
         {
-            var users = _context.Users.OrderBy(u => u.UserId).ToList();
+            var users = GetScheduleUsers();
             var model = new EmployeeShiftGridViewModel
             {
                 Users = users,
@@ -54,6 +172,110 @@ namespace HRMgmt
         public IActionResult EmployeeShift()
         {
             return RedirectToAction(nameof(ShiftAssignment));
+        }
+
+        private void EnsureEmployeeUsersSynced()
+        {
+            var employeeRoleId = _context.Roles
+                .Where(r => r.RoleName.ToLower() == "employee")
+                .Select(r => r.Id)
+                .FirstOrDefault();
+
+            if (employeeRoleId == 0)
+            {
+                var role = new Role { RoleName = "Employee" };
+                _context.Roles.Add(role);
+                _context.SaveChanges();
+                employeeRoleId = role.Id;
+            }
+
+            var employeeAccounts = _context.Account
+                .Where(a => a.Role.ToLower() == "employee")
+                .ToList();
+
+            var hasNewUsers = false;
+            foreach (var account in employeeAccounts)
+            {
+                var (firstName, lastName) = BuildName(account.DisplayName, account.Username);
+                var syncAddress = BuildAutoSyncedAddress(account.Username);
+
+                var exists = _context.Users.Any(u =>
+                    u.Address == syncAddress &&
+                    u.Role == employeeRoleId);
+
+                if (exists)
+                {
+                    continue;
+                }
+
+                _context.Users.Add(new User
+                {
+                    UserId = Guid.NewGuid(),
+                    FirstName = firstName,
+                    LastName = lastName,
+                    Address = syncAddress,
+                    Role = employeeRoleId,
+                    HourlyWage = 0m
+                });
+                hasNewUsers = true;
+            }
+
+            if (hasNewUsers)
+            {
+                _context.SaveChanges();
+            }
+        }
+
+        private static (string FirstName, string LastName) BuildName(string? displayName, string username)
+        {
+            var source = string.IsNullOrWhiteSpace(displayName) ? username : displayName;
+            var cleaned = Regex.Replace(source ?? string.Empty, @"[^a-zA-Z\s'\-]", " ").Trim();
+            var parts = cleaned
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .ToList();
+
+            if (parts.Count == 0)
+            {
+                return ("Employee", "User");
+            }
+
+            if (parts.Count == 1)
+            {
+                return (parts[0], "User");
+            }
+
+            return (parts[0], string.Join(" ", parts.Skip(1)));
+        }
+
+        private static string BuildAutoSyncedAddress(string username)
+        {
+            return $"AutoSynced:{(username ?? string.Empty).Trim().ToLowerInvariant()}";
+        }
+
+        private static bool TryParseDayOfWeek(string dayName, out DayOfWeek dayOfWeek)
+        {
+            if (Enum.TryParse(dayName, true, out dayOfWeek))
+            {
+                return true;
+            }
+
+            dayOfWeek = DayOfWeek.Monday;
+            return false;
+        }
+
+        private static DateOnly ResolveTemplateDate(DayOfWeek dayOfWeek, int weekType, int weekIndex)
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var current = today.DayOfWeek;
+            var delta = ((int)dayOfWeek - (int)current + 7) % 7;
+            var resolved = today.AddDays(delta);
+
+            if (weekType == 2)
+            {
+                resolved = resolved.AddDays((weekIndex <= 0 ? 0 : 1) * 7);
+            }
+
+            return resolved;
         }
 
         [HttpGet]
@@ -111,7 +333,7 @@ namespace HRMgmt
                 resolvedWeekIndex = resolvedWeekIndex <= 0 ? 0 : 1;
             }
 
-            var users = _context.Users.OrderBy(u => u.UserId).ToList();
+            var users = GetScheduleUsers();
             var rows = templateQuery
                 .Where(t => t.WeekType == resolvedWeekType && t.WeekIndex == resolvedWeekIndex)
                 .ToList();
@@ -138,6 +360,36 @@ namespace HRMgmt
                 weekIndex = resolvedWeekIndex,
                 grid
             });
+        }
+
+        private List<User> GetScheduleUsers()
+        {
+            EnsureEmployeeUsersSynced();
+
+            var employeeRoleIds = _context.Roles
+                .Where(r => r.RoleName.ToLower() == "employee")
+                .Select(r => r.Id)
+                .ToList();
+
+            if (employeeRoleIds.Count == 0)
+            {
+                return new List<User>();
+            }
+
+            var users = _context.Users
+                .AsNoTracking()
+                .Where(u => employeeRoleIds.Contains(u.Role))
+                .ToList();
+
+            var deduped = users
+                .OrderByDescending(u => !string.IsNullOrWhiteSpace(u.Address) && u.Address.StartsWith("AutoSynced:", StringComparison.OrdinalIgnoreCase))
+                .ThenBy(u => u.UserId)
+                .GroupBy(u => $"{u.FirstName} {u.LastName}".Trim().ToLowerInvariant())
+                .Select(g => g.First())
+                .OrderBy(u => u.UserId)
+                .ToList();
+
+            return deduped;
         }
 
         [HttpPost]
@@ -579,6 +831,87 @@ namespace HRMgmt
         private bool ShiftExists(Guid id)
         {
             return _context.Shifts.Any(e => e.ShiftId == id);
+        }
+
+        private async Task<Guid?> ResolveCurrentEmployeeUserIdAsync()
+        {
+            var sessionUserId = HttpContext.Session.GetString("UserId");
+
+            if (Guid.TryParse(sessionUserId, out var guidUserId))
+            {
+                var existsByGuid = await _context.Users
+                    .AsNoTracking()
+                    .AnyAsync(u => u.UserId == guidUserId);
+
+                if (existsByGuid)
+                {
+                    return guidUserId;
+                }
+            }
+
+            var sessionDisplayName = (HttpContext.Session.GetString("UserName") ?? string.Empty).Trim();
+
+            static string Normalize(string? value) =>
+                (value ?? string.Empty).Trim().ToLowerInvariant();
+
+            string? username = null;
+
+            if (int.TryParse(sessionUserId, out var accountId))
+            {
+                username = await _context.Account
+                    .AsNoTracking()
+                    .Where(a => a.Id == accountId)
+                    .Select(a => a.Username)
+                    .FirstOrDefaultAsync();
+
+                var autosyncedAddress = BuildAutoSyncedAddress(username ?? string.Empty);
+                var byAutoSyncedAddress = await _context.Users
+                    .AsNoTracking()
+                    .Where(u => u.Address == autosyncedAddress)
+                    .Select(u => (Guid?)u.UserId)
+                    .FirstOrDefaultAsync();
+
+                if (byAutoSyncedAddress != null)
+                {
+                    return byAutoSyncedAddress;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(username))
+            {
+                var normalizedUsername = Normalize(username);
+                var byUsername = await _context.Users
+                    .AsNoTracking()
+                    .Where(u =>
+                        u.FirstName.ToLower() == normalizedUsername ||
+                        (u.FirstName + u.LastName).ToLower() == normalizedUsername ||
+                        (u.FirstName + "." + u.LastName).ToLower() == normalizedUsername ||
+                        (u.FirstName + "_" + u.LastName).ToLower() == normalizedUsername)
+                    .Select(u => (Guid?)u.UserId)
+                    .FirstOrDefaultAsync();
+
+                if (byUsername != null)
+                {
+                    return byUsername;
+                }
+            }
+
+            var normalizedDisplayName = Normalize(sessionDisplayName);
+            if (!string.IsNullOrWhiteSpace(normalizedDisplayName))
+            {
+                var byDisplayName = await _context.Users
+                    .AsNoTracking()
+                    .Where(u => (u.FirstName + " " + u.LastName).ToLower() == normalizedDisplayName)
+                    .Select(u => (Guid?)u.UserId)
+                    .FirstOrDefaultAsync();
+
+                if (byDisplayName != null)
+                {
+                    return byDisplayName;
+                }
+            }
+
+            return null;
         }
 
         public sealed class AutoAssignByTemplateDto

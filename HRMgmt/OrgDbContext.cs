@@ -25,12 +25,12 @@ namespace HRMgmt
                 .HasForeignKey(u => u.Role);
 
             modelBuilder.Entity<ShiftAssignment>()
-                .HasOne<User>()
-                .WithMany()
+                .HasOne(sa => sa.User)
+                .WithMany(u => u.ShiftAssignments)
                 .HasForeignKey(sa => sa.UserId);
 
             modelBuilder.Entity<ShiftAssignment>()
-                .HasOne<Shift>()
+                .HasOne(sa => sa.Shift)
                 .WithMany(s => s.ShiftAssignment)
                 .HasForeignKey(sa => sa.ShiftId);
 
@@ -41,6 +41,7 @@ namespace HRMgmt
 
             modelBuilder.Entity<TemplateGenerationLog>()
                 .HasIndex(x => new { x.TemplateName, x.StartDate, x.EndDate });
+
         }
         public DbSet<HRMgmt.Models.Account> Account { get; set; } = default!;
     }

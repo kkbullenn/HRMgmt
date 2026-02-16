@@ -29,5 +29,7 @@ namespace HRMgmt.Models
 
         public decimal? HourlyWage { get; set; }
 
+        public ICollection<ShiftAssignment> ShiftAssignments { get; set; } = new List<ShiftAssignment>();
+
     }
 }
