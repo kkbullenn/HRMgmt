@@ -48,20 +48,20 @@ namespace HRMgmt.Models
         Yearly
     }
 
-    // public class EmployeeShift
-    // {
-    //     [Key]
-    //     public Guid EmployeeShiftId { get; set; }
+    public class EmployeeShift
+    {
+        [Key]
+        public Guid EmployeeShiftId { get; set; }
 
 
-    //     [Required]
-    //     public Guid ShiftId { get; set; }
+        [Required]
+        public Guid ShiftId { get; set; }
 
-    //     [Required]
-    //     public Guid UserId { get; set; }
+        [Required]
+        public Guid UserId { get; set; }
 
-    //     [Required]
-    //     public DateTime Date { get; set; }
-    // }
+        [Required]
+        public DateTime Date { get; set; }
+    }
     
 }

@@ -171,7 +171,7 @@
         <button type="submit" id="saveTemplateBtn" class="btn btn-primary">Save</button>
     </form>
 
-    <button type="button" id="autoAssignBtn" class="btn btn-success" style="margin-top:16px;" disabled>Generate Schedule</button>
+    <button type="button" id="autoAssignBtn" class="btn btn-success" style="margin-top:16px;">Generate Schedule</button>
     <div class="d-flex align-items-center mb-2" style="width:100%;">
         <div>
             <label class="me-2">Assignment Range:</label>
@@ -222,19 +222,9 @@
     }
 
     function updateActionButtonsState() {
-        const generateBtn = document.getElementById('autoAssignBtn');
-        const saveBtn = document.getElementById('saveTemplateBtn');
         const deleteBtn = document.getElementById('deleteTemplateBtn');
         const templateName = (document.getElementById('templateNameInput')?.value || '').trim();
-        const hasGridValue = hasAnyAssignedShift(captureCurrentGrid());
         const isDup = isTemplateNameDuplicateForCreate();
-
-        if (generateBtn) {
-            generateBtn.disabled = !(templateName && hasGridValue);
-        }
-        if (saveBtn) {
-            saveBtn.disabled = !hasGridValue || isDup;
-        }
         if (deleteBtn) {
             deleteBtn.disabled = !isTemplateEditLocked || !templateName;
         }
@@ -588,19 +578,26 @@
 
         const weekType = document.getElementById('weekTypeInput')?.value || '1';
         const templateName = (document.getElementById('templateNameInput')?.value || '').trim();
-        if (!validateTemplateName()) {
-            alert('Template name already exists. Please choose a different name.');
-            return;
-        }
+        const hasGridValue = hasAnyAssignedShift(captureCurrentGrid());
+        let biweeklyHasData = true;
         if (weekType === '2') {
             const biWeek1 = payload.find(p => p.weekType === 2 && p.weekIndex === 0);
             const biWeek2 = payload.find(p => p.weekType === 2 && p.weekIndex === 1);
             const hasWeek1 = hasAnyAssignedShift(biWeek1?.grid);
             const hasWeek2 = hasAnyAssignedShift(biWeek2?.grid);
-            if (!hasWeek1 || !hasWeek2) {
-                const ok = confirm('Biweekly template currently does not have both Week 1 and Week 2 data. Save anyway and continue editing later?');
-                if (!ok) return;
-            }
+            biweeklyHasData = hasWeek1 || hasWeek2;
+        }
+        if (!templateName) {
+            alert('Please enter a template name.');
+            return;
+        }
+        if ((weekType !== '2' && !hasGridValue) || (weekType === '2' && !biweeklyHasData)) {
+            alert('Please assign at least one shift before saving.');
+            return;
+        }
+        if (!validateTemplateName()) {
+            alert('Template name already exists. Please choose a different name.');
+            return;
         }
 
         if (weekType === '1' && templateName) {
@@ -635,25 +632,65 @@
     document.getElementById('autoAssignBtn').addEventListener('click', async function(e) {
         e.preventDefault();
         persistActiveGrid();
+        syncWeekControls();
         const templateName = (document.getElementById('templateNameInput').value || '').trim();
         const assignStart = document.getElementById('assignStart').value;
         const assignEnd = document.getElementById('assignEnd').value;
         const weekType = parseInt((document.getElementById('weekTypeInput')?.value || '1'), 10);
-        if (!templateName) {
-            alert('Please enter/select a template name.');
-            return;
-        }
+        let hasGridValue = false;
         if (weekType === 2) {
-            const w1 = await fetchTemplateWeekFromServer(templateName, '2', '0', false);
-            const w2 = await fetchTemplateWeekFromServer(templateName, '2', '1', false);
-            const hasWeek1 = hasAnyAssignedShift(w1?.grid);
-            const hasWeek2 = hasAnyAssignedShift(w2?.grid);
+            const localWeek1 = gridCache[buildGridCacheKey('2', '0')];
+            const localWeek2 = gridCache[buildGridCacheKey('2', '1')];
+            let hasWeek1 = hasAnyAssignedShift(localWeek1);
+            let hasWeek2 = hasAnyAssignedShift(localWeek2);
+            if (!hasWeek1 || !hasWeek2) {
+                const w1 = await fetchTemplateWeekFromServer(templateName, '2', '0', false);
+                const w2 = await fetchTemplateWeekFromServer(templateName, '2', '1', false);
+                if (!hasWeek1) hasWeek1 = hasAnyAssignedShift(w1?.grid);
+                if (!hasWeek2) hasWeek2 = hasAnyAssignedShift(w2?.grid);
+            }
+            hasGridValue = hasWeek1 || hasWeek2;
             if (!hasWeek1 || !hasWeek2) {
                 alert('Biweekly template must include both Week 1 and Week 2 data before generating shiftsheets.');
                 return;
             }
+        } else {
+            hasGridValue = hasAnyAssignedShift(captureCurrentGrid());
+        }
+        if (!templateName) {
+            alert('Please enter a template name.');
+            return;
+        }
+        if (!hasGridValue) {
+            alert('Please assign at least one shift before generating.');
+            return;
         }
         this.disabled = true;
+        this.textContent = 'Saving...';
+        try {
+            const payload = buildWeeksPayloadForSubmit();
+            const holder = document.getElementById('allWeeksGridJson');
+            if (holder) {
+                holder.value = JSON.stringify(payload);
+            }
+            const formData = new FormData(document.getElementById('mainForm'));
+            const saveResp = await fetch('/Shift/SaveShiftTemplate', {
+                method: 'POST',
+                body: formData
+            });
+            if (!saveResp.ok) {
+                const err = await saveResp.text();
+                alert('Save failed: ' + err);
+                this.disabled = false;
+                this.textContent = 'Generate Schedule';
+                return;
+            }
+        } catch (ex) {
+            alert('Save error: ' + ex);
+            this.disabled = false;
+            this.textContent = 'Generate Schedule';
+            return;
+        }
         this.textContent = 'Generating...';
         try {
             const resp = await fetch('/Shift/AutoAssignByTemplate', {
@@ -675,7 +712,7 @@
                     alert(data.message || 'Auto assignment failed.');
                     return;
                 }
-                alert(data.message || 'Auto assignment completed!');
+                alert('Schedule generated successfully. ' + (data.message || 'Auto assignment completed!'));
                 window.location.reload();
             } else {
                 const err = await resp.text();

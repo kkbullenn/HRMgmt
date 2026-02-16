@@ -275,110 +275,94 @@ namespace HRMgmt
                 return Json(new { success = false, message = "No shifts found in the system." });
             }
 
-            // Template-driven generation: only depend on template + date range.
-            var effectiveStart = dto.startDate?.Date ?? DateTime.Today;
-            var effectiveEnd = dto.endDate?.Date ?? effectiveStart.AddDays(13);
-            if (effectiveEnd < effectiveStart)
-            {
-                return Json(new { success = false, message = "End date must be on or after start date." });
-            }
-            var startDateOnly = DateOnly.FromDateTime(effectiveStart);
-            var endDateOnly = DateOnly.FromDateTime(effectiveEnd);
-
-            // Block repeated publishes for overlapping date ranges of the same template.
-            var overlapLog = _context.TemplateGenerationLogs
-                .Where(l =>
-                    l.TemplateName == dto.templateName &&
-                    startDateOnly <= l.EndDate &&
-                    endDateOnly >= l.StartDate)
-                .OrderByDescending(l => l.GeneratedAt)
-                .FirstOrDefault();
-            if (overlapLog != null)
-            {
-                return Json(new
-                {
-                    success = false,
-                    message = $"This template has already been generated for an overlapping date range (existing: {overlapLog.StartDate:yyyy-MM-dd} to {overlapLog.EndDate:yyyy-MM-dd})."
-                });
-            }
-
+            var globalStart = dto.startDate?.Date;
+            var globalEnd = dto.endDate?.Date;
+            DateOnly? globalStartOnly = globalStart != null ? DateOnly.FromDateTime(globalStart.Value) : (DateOnly?)null;
+            DateOnly? globalEndOnly = globalEnd != null ? DateOnly.FromDateTime(globalEnd.Value) : (DateOnly?)null;
             var shiftMap = shifts.ToDictionary(s => s.ShiftId, s => s);
             var isBiweekly = dto.weekType == 2;
             var weeklyRows = templateRows.Where(r => r.WeekType == 1).ToList();
             var biweeklyRows = templateRows.Where(r => r.WeekType == 2).ToList();
-
             if (isBiweekly)
             {
-                // Require both weeks for biweekly generation.
                 var hasWeek1 = biweeklyRows.Any(r => r.WeekIndex == 0);
                 var hasWeek2 = biweeklyRows.Any(r => r.WeekIndex == 1);
                 if (!hasWeek1 || !hasWeek2)
                 {
-                    return Json(new
-                    {
-                        success = false,
-                        message = "Biweekly generation requires both Week 1 and Week 2 templates."
-                    });
+                    return Json(new { success = false, message = "Biweekly generation requires both Week 1 and Week 2 templates." });
                 }
             }
             else if (weeklyRows.Count == 0)
             {
-                return Json(new
-                {
-                    success = false,
-                    message = "Weekly generation requires a Weekly template (Week Type = Weekly)."
-                });
+                return Json(new { success = false, message = "Weekly generation requires a Weekly template (Week Type = Weekly)." });
             }
-
+            // delete existing assignments that fall into any of the to-be-generated cells, to avoid conflicts and ensure idempotency
+            var assignmentsToDelete = new List<ShiftAssignment>();
+            foreach (var row in templateRows) {
+                var shiftIdRaw = (row.ShiftType ?? string.Empty).Trim();
+                if (!Guid.TryParse(shiftIdRaw, out var shiftId)) continue;
+                if (!shiftMap.TryGetValue(shiftId, out var shift)) continue;
+                var shiftStart = DateOnly.FromDateTime(shift.StartDate);
+                var shiftEnd = DateOnly.FromDateTime(shift.EndDate);
+                var rangeStart = globalStartOnly ?? shiftStart;
+                var rangeEnd = globalEndOnly ?? shiftEnd;
+                if (rangeStart < shiftStart) rangeStart = shiftStart;
+                if (rangeEnd > shiftEnd) rangeEnd = shiftEnd;
+                if (rangeEnd < rangeStart) continue;
+                var toDel = _context.ShiftAssignments.Where(sa =>
+                    sa.UserId == row.UserId &&
+                    sa.ShiftId == shift.ShiftId &&
+                    sa.ShiftDate >= rangeStart &&
+                    sa.ShiftDate <= rangeEnd
+                ).ToList();
+                assignmentsToDelete.AddRange(toDel);
+            }
+            if (assignmentsToDelete.Count > 0) {
+                _context.ShiftAssignments.RemoveRange(assignmentsToDelete);
+                _context.SaveChanges();
+            }
             var added = 0;
-            // Simplest rule: one user can only have one shift per day.
             var existingUserDateKeys = new HashSet<string>(
-                _context.ShiftAssignments
-                    .Select(sa => $"{sa.UserId}_{sa.ShiftDate:yyyy-MM-dd}")
-                    .ToList(),
+                _context.ShiftAssignments.Select(sa => $"{sa.UserId}_{sa.ShiftDate:yyyy-MM-dd}").ToList(),
                 StringComparer.OrdinalIgnoreCase);
-
-            for (var date = effectiveStart; date <= effectiveEnd; date = date.AddDays(1))
+            foreach (var row in templateRows)
             {
-                var dayName = date.DayOfWeek.ToString();
-                var weekIndex = ((date - effectiveStart).Days / 7) % 2;
-                var shiftDate = DateOnly.FromDateTime(date);
-                IEnumerable<SchedulingTemplate> rowsForDay;
-                if (isBiweekly)
+                var shiftIdRaw = (row.ShiftType ?? string.Empty).Trim();
+                if (!Guid.TryParse(shiftIdRaw, out var shiftId)) continue;
+                if (!shiftMap.TryGetValue(shiftId, out var shift)) continue;
+                var shiftStart = DateOnly.FromDateTime(shift.StartDate);
+                var shiftEnd = DateOnly.FromDateTime(shift.EndDate);
+                var rangeStart = globalStartOnly ?? shiftStart;
+                var rangeEnd = globalEndOnly ?? shiftEnd;
+                if (rangeStart < shiftStart) rangeStart = shiftStart;
+                if (rangeEnd > shiftEnd) rangeEnd = shiftEnd;
+                if (rangeEnd < rangeStart) continue;
+                for (var date = rangeStart; date <= rangeEnd; date = date.AddDays(1))
                 {
-                    rowsForDay = biweeklyRows.Where(r =>
-                        r.DayOfWeek.Equals(dayName, StringComparison.OrdinalIgnoreCase) &&
-                        r.WeekIndex == weekIndex);
-                }
-                else
-                {
-                    rowsForDay = weeklyRows.Where(r =>
-                        r.DayOfWeek.Equals(dayName, StringComparison.OrdinalIgnoreCase));
-                }
-
-                foreach (var row in rowsForDay)
-                {
-                    var shiftIdRaw = (row.ShiftType ?? string.Empty).Trim();
-                    if (!Guid.TryParse(shiftIdRaw, out var shiftId))
+                    var dayName = DaysOfWeek[(int)date.DayOfWeek];
+                    bool match = false;
+                    if (isBiweekly && row.WeekType == 2)
                     {
-                        continue;
+                        var weekIndex = ((date.DayNumber - rangeStart.DayNumber) / 7) % 2;
+                        match = (row.WeekIndex == weekIndex) && row.DayOfWeek.Equals(dayName, StringComparison.OrdinalIgnoreCase);
                     }
-
-                    if (!shiftMap.TryGetValue(shiftId, out var shift)) continue;
-                    var userDateKey = $"{row.UserId}_{shiftDate:yyyy-MM-dd}";
+                    else if (!isBiweekly && row.WeekType == 1)
+                    {
+                        match = row.DayOfWeek.Equals(dayName, StringComparison.OrdinalIgnoreCase);
+                    }
+                    if (!match) continue;
+                    var userDateKey = $"{row.UserId}_{date:yyyy-MM-dd}";
                     if (existingUserDateKeys.Contains(userDateKey)) continue;
-
                     var exists = _context.ShiftAssignments.Any(sa =>
                         sa.UserId == row.UserId &&
                         sa.ShiftId == shift.ShiftId &&
-                        sa.ShiftDate == shiftDate);
+                        sa.ShiftDate == date);
                     if (exists) continue;
-
                     _context.ShiftAssignments.Add(new ShiftAssignment
                     {
                         UserId = row.UserId,
                         ShiftId = shift.ShiftId,
-                        ShiftDate = shiftDate
+                        ShiftDate = date
                     });
                     existingUserDateKeys.Add(userDateKey);
                     added++;
@@ -386,12 +370,29 @@ namespace HRMgmt
             }
 
             _context.SaveChanges();
+            DateOnly? minDate = null;
+            DateOnly? maxDate = null;
+            foreach (var row in templateRows)
+            {
+                var shiftIdRaw = (row.ShiftType ?? string.Empty).Trim();
+                if (!Guid.TryParse(shiftIdRaw, out var shiftId)) continue;
+                if (!shiftMap.TryGetValue(shiftId, out var shift)) continue;
+                var shiftStart = DateOnly.FromDateTime(shift.StartDate);
+                var shiftEnd = DateOnly.FromDateTime(shift.EndDate);
+                var rangeStart = globalStartOnly ?? shiftStart;
+                var rangeEnd = globalEndOnly ?? shiftEnd;
+                if (rangeStart < shiftStart) rangeStart = shiftStart;
+                if (rangeEnd > shiftEnd) rangeEnd = shiftEnd;
+                if (rangeEnd < rangeStart) continue;
+                if (minDate == null || rangeStart < minDate) minDate = rangeStart;
+                if (maxDate == null || rangeEnd > maxDate) maxDate = rangeEnd;
+            }
             _context.TemplateGenerationLogs.Add(new TemplateGenerationLog
             {
                 TemplateName = dto.templateName.Trim(),
                 WeekType = dto.weekType == 2 ? 2 : 1,
-                StartDate = startDateOnly,
-                EndDate = endDateOnly,
+                StartDate = minDate ?? DateOnly.FromDateTime(DateTime.Today),
+                EndDate = maxDate ?? DateOnly.FromDateTime(DateTime.Today),
                 GeneratedAt = DateTime.UtcNow,
                 GeneratedCount = added
             });
@@ -400,7 +401,7 @@ namespace HRMgmt
             {
                 success = true,
                 count = added,
-                message = $"Template applied using range {effectiveStart:yyyy-MM-dd} to {effectiveEnd:yyyy-MM-dd}."
+                message = $"Template applied using range {(minDate?.ToString("yyyy-MM-dd") ?? "-")} to {(maxDate?.ToString("yyyy-MM-dd") ?? "-")}."
             });
         }
 
