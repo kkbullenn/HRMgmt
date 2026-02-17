@@ -1,46 +1,37 @@
+/* ================================
+  Design Tokens
+================================ */
+:root {
+  /* Brand Colors */
+  --primary: #7C3AED;
+  --primary-light: #C4B5FD;
+  --accent: #F9A8D4;
 
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
+  /* Neutral Colors */
+  --bg-soft: #F6F7FB;
+  --card-bg: #FFFFFF;
+  --text-dark: #1F2937;
+  --text-muted: #6B7280;
+
+  /* Radius */
+  --radius-lg: 20px;
+  --radius-md: 12px;
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
+/* ================================
+  Base Layout
+================================ */
 html {
   font-size: 14px;
   position: relative;
   min-height: 100%;
 }
 
-
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
 }
-
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
-}
-
-
-:root {
-  --primary: #7C3AED;
-  --primary-light: #C4B5FD;
-  --accent: #F9A8D4;
-
-  --bg-soft: #F6F7FB;
-  --card-bg: #FFFFFF;
-
-  --text-dark: #1F2937;
-  --text-muted: #6B7280;
-
-  --radius-lg: 20px;
-  --radius-md: 12px;
-}
-
 
 body {
   margin-bottom: 60px;
@@ -56,7 +47,9 @@ body {
   min-height: 80vh;
 }
 
-
+/* ================================
+  Navbar Styling
+================================ */
 .navbar {
   background-color: white !important;
   border-radius: var(--radius-lg);
@@ -81,6 +74,9 @@ body {
 }
 
 
+/* ================================
+  UI Card Component
+================================ */
 .ui-card {
   background: var(--card-bg);
   padding: 2rem;
@@ -98,7 +94,9 @@ body {
   z-index: -1;
 }
 
-
+/* ================================
+  Badge Component
+================================ */
 .ui-badge {
   padding: 0.3rem 0.9rem;
   border-radius: 999px;
@@ -116,10 +114,13 @@ body {
   color: #1D4ED8;
 }
 
-
+/* ================================
+  Table Styling
+================================ */
 table {
   border-collapse: separate;
   border-spacing: 0 12px;
+  width: 100%;
 }
 
 thead {
@@ -132,7 +133,9 @@ th, td {
   background: white;
 }
 
-
+/* ================================
+  Buttons
+================================ */
 .btn-primary {
   background-color: var(--primary);
   border: none;
@@ -142,4 +145,21 @@ th, td {
 
 .btn-primary:hover {
   background-color: #6D28D9;
+}
+
+
+/* ================================
+  Focus States
+================================ */
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.25rem var(--primary-light);
+}
+
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+  color: var(--bs-secondary-color);
+  text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+  text-align: start;
 }
