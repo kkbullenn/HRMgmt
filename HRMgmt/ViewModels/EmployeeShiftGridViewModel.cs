@@ -7,5 +7,6 @@ namespace HRMgmt.ViewModels
     {
         public List<string> Grid { get; set; } = new List<string>();
         public List<Shift> Shifts { get; set; } = new List<Shift>();
+        public List<User> Users { get; set; } = new List<User>();
     }
 }
