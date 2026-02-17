@@ -8,28 +8,21 @@ namespace HRMgmt.Models
     public class ShiftAssignment
     {
         [Key]
-        public int Id { get; set; } 
+        public int Id { get; set; }     
         
         [Required]
-        public Guid ShiftID { get; set; }
+        public Guid ShiftId { get; set; }
+
         [Required]
-        public Guid EmployeeId { get; set; }
-        
-        public int? ServiceId { get; set; }
-        
+        public Guid UserId { get; set; }
+
         [Required]
-        public DateOnly AssignmentDate { get; set; }
-        
-        [StringLength(500)]
-        public string? Notes { get; set; }
-        
-        [ForeignKey("ShiftID")]
-        public virtual Shift? Shift { get; set; }
-        
-        [ForeignKey("EmployeeId")]
-        public virtual Employee? Employee { get; set; } 
-        
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime? ModifiedAt { get; set; }
+        public DateOnly ShiftDate { get; set; }
+
+        [ForeignKey(nameof(UserId))]
+        public User? User { get; set; }
+
+        [ForeignKey(nameof(ShiftId))]
+        public Shift? Shift { get; set; }
     }
 }
