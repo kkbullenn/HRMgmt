@@ -1,0 +1,78 @@
+@model HRMgmt.ViewModels.PayrollReviewViewModel
+@{
+    ViewData["Title"] = "Payroll Review";
+}
+
+<h2>Employee Payroll Review</h2>
+
+<form asp-action="Review" method="post" class="mb-4">
+    <div class="row align-items-end g-2">
+        <div class="col-auto">
+            <label class="form-label">Pay Period Start</label>
+            <input type="date" name="payPeriodStart" value="@Model.PayPeriodStart.ToString("yyyy-MM-dd")" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">Pay Period End</label>
+            <input type="date" name="payPeriodEnd" value="@Model.PayPeriodEnd.ToString("yyyy-MM-dd")" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Generate Report</button>
+        </div>
+    </div>
+</form>
+
+<p class="text-muted mb-3">
+    Showing payroll for @Model.PayPeriodStart.ToString("MMM d, yyyy") – @Model.PayPeriodEnd.ToString("MMM d, yyyy")
+    @(Model.Rows.Count > 0 ? $"• {Model.TotalShifts} total shifts • {Model.TotalGrossPay:C} total gross pay" : "")
+</p>
+
+@if (Model.Rows.Count == 0)
+{
+    <p class="text-muted">No shifts found for this pay period. Adjust the date range or assign shifts in the Schedule.</p>
+    <a asp-controller="Shifts" asp-action="AssignGrid" class="btn btn-outline-secondary">Go to Schedule</a>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Employee</th>
+                    <th>Role</th>
+                    <th>Shifts</th>
+                    <th class="text-end">Hours</th>
+                    <th class="text-end">Hourly Rate</th>
+                    <th class="text-end">Gross Pay</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr>
+                        <td>
+                            <a asp-controller="Employees" asp-action="Details" asp-route-id="@row.EmployeeId">@row.EmployeeName</a>
+                        </td>
+                        <td>@row.Role</td>
+                        <td>@row.ShiftCount</td>
+                        <td class="text-end">@row.TotalHours.ToString("F1")</td>
+                        <td class="text-end">@row.HourlyRate.ToString("C2")</td>
+                        <td class="text-end fw-semibold">@row.GrossPay.ToString("C2")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot class="table-light">
+                <tr>
+                    <td colspan="3" class="fw-bold">Total</td>
+                    <td class="text-end">@Model.TotalHours.ToString("F1")</td>
+                    <td></td>
+                    <td class="text-end fw-bold">@Model.TotalGrossPay.ToString("C2")</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+}
+
+<hr class="my-4" />
+<p>
+    <a asp-controller="Shifts" asp-action="EmployeeShift" class="btn btn-outline-primary">View Shift Calendar</a>
+</p>
