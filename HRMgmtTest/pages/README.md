@@ -1,0 +1,1 @@
+This file is to hold classes design per page to make selecting and asserting easier.

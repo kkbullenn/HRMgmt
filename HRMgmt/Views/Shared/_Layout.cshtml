@@ -89,7 +89,7 @@
                     {
                         <ul class="navbar-nav flex-grow-1">
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Employees" asp-action="Index">Employee</a>
+                                <a class="nav-link text-dark" asp-controller="Users" asp-action="Index">Employee</a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="Shift" asp-action="EmployeeShift">Schedule</a>
@@ -121,6 +121,10 @@
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="Account" asp-action="Login" asp-route-role="Admin">Admin Login</a>
+                            </li>
+                            <!-- public link for anonymous users to browse shift assignments -->
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="ShiftAssignment" asp-action="Index">Shift Assignments</a>
                             </li>
                         </ul>
                     }
