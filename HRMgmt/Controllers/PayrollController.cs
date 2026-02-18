@@ -20,15 +20,12 @@ namespace HRMgmt.Controllers
             _context = context;
         }
 
-		// Checks if the logged-in user has the Admin role
-		// Used to restrict access to admin-only features (e.g., payroll calculation)
-		private bool IsAdmin()
+		// Checks if the logged-in user has access to payroll tools (Admin or HR)
+		private bool HasPayrollAccess()
 		{
-			return string.Equals(
-				HttpContext.Session.GetString("UserRole"),
-				"Admin",
-				StringComparison.OrdinalIgnoreCase
-			);
+			var role = HttpContext.Session.GetString("UserRole");
+			return string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)
+				|| string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase);
 		}
 
 		// GET: Payroll
@@ -165,8 +162,8 @@ namespace HRMgmt.Controllers
 		[HttpGet]
 		public IActionResult AdminCalculate()
 		{
-			if (!IsAdmin())
-				return RedirectToAction("Login", "Account", new { role = "Admin" });
+			if (!HasPayrollAccess())
+				return RedirectToAction("Login", "Account", new { role = "HR" });
 
 			var vm = new AdminPayrollCalcViewModel
 			{
@@ -182,8 +179,8 @@ namespace HRMgmt.Controllers
 		[ValidateAntiForgeryToken]
 		public async Task<IActionResult> AdminCalculate(AdminPayrollCalcViewModel vm)
 		{
-			if (!IsAdmin())
-				return RedirectToAction("Login", "Account", new { role = "Admin" });
+			if (!HasPayrollAccess())
+				return RedirectToAction("Login", "Account", new { role = "HR" });
 
 			if (vm.EndDate.Date < vm.StartDate.Date)
 				ModelState.AddModelError("", "End date must be on/after start date.");
