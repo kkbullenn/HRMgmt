@@ -39,7 +39,8 @@ namespace HRMgmt.Migrations
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
 
                     b.Property<string>("Role")
                         .IsRequired()
@@ -56,62 +57,7 @@ namespace HRMgmt.Migrations
                     b.ToTable("Accounts");
                 });
 
-            modelBuilder.Entity("HRMgmt.Models.Employee", b =>
-                {
-                    b.Property<Guid>("ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Address")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateOnly?>("DateOfBirth")
-                        .HasColumnType("date");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<byte[]>("Photo")
-                        .HasColumnType("longblob");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<decimal>("Salary")
-                        .HasColumnType("decimal(65,30)");
-
-                    b.Property<int?>("ServiceId")
-                        .HasColumnType("int");
-
-                    b.HasKey("ID");
-
-                    b.HasIndex("ServiceId");
-
-                    b.ToTable("Employees");
-                });
-
-            modelBuilder.Entity("HRMgmt.Models.EmployeeShift", b =>
-                {
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid>("ShiftId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("EmployeeId", "ShiftId", "Date");
-
-                    b.HasIndex("ShiftId");
-
-                    b.ToTable("EmployeeShifts");
-                });
-
-            modelBuilder.Entity("HRMgmt.Models.Service", b =>
+            modelBuilder.Entity("HRMgmt.Models.Payroll", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -119,21 +65,101 @@ namespace HRMgmt.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Name")
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("GrossPay")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("OvertimeHours")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<DateTime>("PayPeriodEnd")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("PayPeriodStart")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("RegularHours")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("SickHours")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<decimal>("Rate")
+                    b.Property<decimal>("TotalHours")
                         .HasColumnType("decimal(65,30)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Service");
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Payrolls");
+                });
+
+            modelBuilder.Entity("HRMgmt.Models.Role", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("RoleName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Roles");
+                });
+
+            modelBuilder.Entity("HRMgmt.Models.SchedulingTemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DayOfWeek")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("ShiftType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("TemplateName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("WeekIndex")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WeekType")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SchedulingTemplates");
                 });
 
             modelBuilder.Entity("HRMgmt.Models.Shift", b =>
                 {
-                    b.Property<Guid>("ID")
+                    b.Property<Guid>("ShiftId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
@@ -142,13 +168,6 @@ namespace HRMgmt.Migrations
 
                     b.Property<TimeSpan>("EndTime")
                         .HasColumnType("time(6)");
-
-                    b.Property<int>("Interval")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Location")
-                        .IsRequired()
-                        .HasColumnType("longtext");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -170,7 +189,7 @@ namespace HRMgmt.Migrations
                     b.Property<TimeSpan>("StartTime")
                         .HasColumnType("time(6)");
 
-                    b.HasKey("ID");
+                    b.HasKey("ShiftId");
 
                     b.ToTable("Shifts");
                 });
@@ -183,38 +202,25 @@ namespace HRMgmt.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateOnly>("AssignmentDate")
+                    b.Property<DateOnly>("ShiftDate")
                         .HasColumnType("date");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid>("EmployeeId")
+                    b.Property<Guid>("ShiftId")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<int?>("ServiceId")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("ShiftID")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EmployeeId");
+                    b.HasIndex("ShiftId");
 
-                    b.HasIndex("ShiftID");
+                    b.HasIndex("UserId");
 
                     b.ToTable("ShiftAssignments");
                 });
 
-            modelBuilder.Entity("HRMgmt.Models.ShiftTemplate", b =>
+            modelBuilder.Entity("HRMgmt.Models.TemplateGenerationLog", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -222,94 +228,105 @@ namespace HRMgmt.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("DayOfWeek")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
 
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("char(36)");
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("datetime(6)");
 
-                    b.Property<string>("ShiftType")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                    b.Property<int>("GeneratedCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("TemplateName")
                         .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("WeekIndex")
-                        .HasColumnType("int");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<int>("WeekType")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.ToTable("ShiftTemplates");
+                    b.HasIndex("TemplateName", "StartDate", "EndDate");
+
+                    b.ToTable("TemplateGenerationLogs");
                 });
 
-            modelBuilder.Entity("HRMgmt.Models.Employee", b =>
+            modelBuilder.Entity("HRMgmt.Models.User", b =>
                 {
-                    b.HasOne("HRMgmt.Models.Service", "MyService")
-                        .WithMany("Employees")
-                        .HasForeignKey("ServiceId");
+                    b.Property<Guid>("UserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
 
-                    b.Navigation("MyService");
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateOnly?>("DateOfBirth")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<decimal?>("HourlyWage")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<byte[]>("Photo")
+                        .HasColumnType("longblob");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("Role");
+
+                    b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("HRMgmt.Models.EmployeeShift", b =>
+            modelBuilder.Entity("HRMgmt.Models.Payroll", b =>
                 {
-                    b.HasOne("HRMgmt.Models.Employee", "Employee")
-                        .WithMany("EmployeeShifts")
-                        .HasForeignKey("EmployeeId")
+                    b.HasOne("HRMgmt.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("HRMgmt.Models.Shift", "Shift")
-                        .WithMany("EmployeeShifts")
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-
-                    b.Navigation("Shift");
                 });
 
             modelBuilder.Entity("HRMgmt.Models.ShiftAssignment", b =>
                 {
-                    b.HasOne("HRMgmt.Models.Employee", "Employee")
-                        .WithMany("ShiftAssignments")
-                        .HasForeignKey("EmployeeId")
+                    b.HasOne("HRMgmt.Models.Shift", null)
+                        .WithMany("ShiftAssignment")
+                        .HasForeignKey("ShiftId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("HRMgmt.Models.Shift", "Shift")
+                    b.HasOne("HRMgmt.Models.User", null)
                         .WithMany()
-                        .HasForeignKey("ShiftID")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Employee");
-
-                    b.Navigation("Shift");
                 });
 
-            modelBuilder.Entity("HRMgmt.Models.Employee", b =>
+            modelBuilder.Entity("HRMgmt.Models.User", b =>
                 {
-                    b.Navigation("EmployeeShifts");
-
-                    b.Navigation("ShiftAssignments");
-                });
-
-            modelBuilder.Entity("HRMgmt.Models.Service", b =>
-                {
-                    b.Navigation("Employees");
+                    b.HasOne("HRMgmt.Models.Role", null)
+                        .WithMany()
+                        .HasForeignKey("Role")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("HRMgmt.Models.Shift", b =>
                 {
-                    b.Navigation("EmployeeShifts");
+                    b.Navigation("ShiftAssignment");
                 });
 #pragma warning restore 612, 618
         }
