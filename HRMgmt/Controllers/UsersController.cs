@@ -88,8 +88,8 @@ namespace HRMgmt.Controllers
             }
 
             var syncAddress = BuildAutoSyncedAddress(account.Username);
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Address == account.Username);
-            
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
+
             if (user == null)
             {
                 return NotFound();
@@ -185,11 +185,36 @@ namespace HRMgmt.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(Guid id, [Bind("UserId,FirstName,LastName,DateOfBirth,Address,Photo")] User user)
+        public async Task<IActionResult> Edit(Guid id, [Bind("UserId,FirstName,LastName,DateOfBirth,Address,Photo")] User user, IFormFile? photoFile)
         {
             if (id != user.UserId)
             {
                 return NotFound();
+            }
+
+            var sessionAccountString = HttpContext.Session.GetString("UserId");
+            if (string.IsNullOrEmpty(sessionAccountString) || !int.TryParse(sessionAccountString, out var accountId))
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            var account = await _context.Account.FindAsync(accountId);
+
+
+            if (string.Equals(account.Role, "Employee", StringComparison.OrdinalIgnoreCase))
+            {
+                var syncAddress = BuildAutoSyncedAddress(account.Username);
+                var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
+
+                if (currentUser == null || currentUser.UserId != id)
+                {
+                    return Forbid();
+                }
+            }
+
+            if (account == null)
+            {
+                return RedirectToAction("Login", "Account");
             }
 
             if (ModelState.IsValid)
@@ -205,7 +230,15 @@ namespace HRMgmt.Controllers
                     existingUser.LastName = user.LastName;
                     existingUser.DateOfBirth = user.DateOfBirth;
                     existingUser.Address = user.Address;
-                    existingUser.Photo = user.Photo;
+
+                    if (photoFile != null && photoFile.Length > 0)
+                    {
+                        using (var memoryStream = new MemoryStream())
+                        {
+                            await photoFile.CopyToAsync(memoryStream);
+                            existingUser.Photo = memoryStream.ToArray();
+                        }
+                    }
 
                     await _context.SaveChangesAsync();
                 }
