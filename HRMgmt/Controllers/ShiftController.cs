@@ -26,13 +26,20 @@ namespace HRMgmt
         public async Task<IActionResult> Index()
         {
             var role = HttpContext.Session.GetString("UserRole");
-            if (!string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
-            {
-                if (string.Equals(role, "Employee", StringComparison.OrdinalIgnoreCase))
-                {
-                    return RedirectToAction(nameof(MyShifts));
-                }
 
+            if (string.IsNullOrEmpty(role))
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            if (string.Equals(role, "Employee", StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectToAction(nameof(MyShifts));
+            }
+
+            if (!string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(role, "HR", StringComparison.OrdinalIgnoreCase))
+            {
                 return RedirectToAction("Index", "Home");
             }
 
