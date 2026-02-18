@@ -44,6 +44,32 @@ namespace HRMgmt.Controllers
             return View(user);
         }
 
+        //GET:Users/Profile
+        public async Task<IActionResult> Profile()
+        {
+            var accountIdString = HttpContext.Session.GetString("UserId");
+            if (string.IsNullOrEmpty(accountIdString) || !int.TryParse(accountIdString, out var accountId))
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            var account = await _context.Account.FindAsync(accountId);
+            if (account == null)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            var syncAddress = account.Username;
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Address == account.Username);
+            
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            return View("Details", user);
+        }
+
         // GET: Users/Create
         public IActionResult Create()
         {
