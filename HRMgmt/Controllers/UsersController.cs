@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using HRMgmt.Models;
+using System.Text.RegularExpressions;
 
 namespace HRMgmt.Controllers
 {
@@ -21,6 +22,7 @@ namespace HRMgmt.Controllers
         // GET: Users
         public async Task<IActionResult> Index()
         {
+            await EnsureEmployeeUsersSyncedAsync();
             return View(await _context.Users.ToListAsync());
         }
 
@@ -152,6 +154,84 @@ namespace HRMgmt.Controllers
         private bool UserExists(Guid id)
         {
             return _context.Users.Any(e => e.UserId == id);
+        }
+
+        private async Task EnsureEmployeeUsersSyncedAsync()
+        {
+            var employeeRoleId = await _context.Roles
+                .Where(r => r.RoleName.ToLower() == "employee")
+                .Select(r => r.Id)
+                .FirstOrDefaultAsync();
+
+            if (employeeRoleId == 0)
+            {
+                var role = new Role { RoleName = "Employee" };
+                _context.Roles.Add(role);
+                await _context.SaveChangesAsync();
+                employeeRoleId = role.Id;
+            }
+
+            var employeeAccounts = await _context.Account
+                .Where(a => a.Role.ToLower() == "employee")
+                .ToListAsync();
+
+            var hasNewUsers = false;
+            foreach (var account in employeeAccounts)
+            {
+                var (firstName, lastName) = BuildName(account.DisplayName, account.Username);
+                var syncAddress = BuildAutoSyncedAddress(account.Username);
+
+                var exists = await _context.Users.AnyAsync(u =>
+                    u.Address == syncAddress &&
+                    u.Role == employeeRoleId);
+
+                if (exists)
+                {
+                    continue;
+                }
+
+                _context.Users.Add(new User
+                {
+                    UserId = Guid.NewGuid(),
+                    FirstName = firstName,
+                    LastName = lastName,
+                    Address = syncAddress,
+                    Role = employeeRoleId,
+                    HourlyWage = 0m
+                });
+                hasNewUsers = true;
+            }
+
+            if (hasNewUsers)
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        private static (string FirstName, string LastName) BuildName(string? displayName, string username)
+        {
+            var source = string.IsNullOrWhiteSpace(displayName) ? username : displayName;
+            var cleaned = Regex.Replace(source ?? string.Empty, @"[^a-zA-Z\s'\-]", " ").Trim();
+            var parts = cleaned
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .ToList();
+
+            if (parts.Count == 0)
+            {
+                return ("Employee", "User");
+            }
+
+            if (parts.Count == 1)
+            {
+                return (parts[0], "User");
+            }
+
+            return (parts[0], string.Join(" ", parts.Skip(1)));
+        }
+
+        private static string BuildAutoSyncedAddress(string username)
+        {
+            return $"AutoSynced:{(username ?? string.Empty).Trim().ToLowerInvariant()}";
         }
     }
 }

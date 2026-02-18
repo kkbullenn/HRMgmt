@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace HRMgmt.Controllers
 {
@@ -41,7 +42,6 @@ namespace HRMgmt.Controllers
                 return View();
             }
 
-            // IMPORTANT: assumes OrgDbContext has DbSet<Account> Accounts
             var account = await _context.Account
                 .FirstOrDefaultAsync(a => a.Username == username && a.Role == role);
 
@@ -56,7 +56,11 @@ namespace HRMgmt.Controllers
             HttpContext.Session.SetString("UserName", account.DisplayName ?? account.Username);
             HttpContext.Session.SetString("UserId", account.Id.ToString());
 
-            // You don't have HomeController in your project right now
+            if (string.Equals(account.Role, "Employee", StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectToAction("MyShifts", "Shift");
+            }
+
             return RedirectToAction("Index", "Users");
         }
 
@@ -95,6 +99,39 @@ namespace HRMgmt.Controllers
             return View();
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SyncEmployeeUsers()
+        {
+            var employeeAccounts = await _context.Account
+                .Where(a => a.Role.ToLower() == "employee")
+                .ToListAsync();
+
+            var createdCount = 0;
+            foreach (var account in employeeAccounts)
+            {
+                var result = await EnsureUserProfileForAccountAsync(
+                    account.Username,
+                    account.DisplayName ?? account.Username,
+                    account.Role);
+
+                if (!result.Success)
+                {
+                    TempData["Error"] = result.ErrorMessage ?? "Sync failed.";
+                    return RedirectToAction(nameof(Create));
+                }
+
+                if (result.CreatedUser)
+                {
+                    createdCount++;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            TempData["Success"] = $"Synced employee profiles. Created {createdCount} user record(s).";
+            return RedirectToAction(nameof(Create));
+        }
+
         // POST: Account/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -116,6 +153,13 @@ namespace HRMgmt.Controllers
             if (exists)
             {
                 ViewBag.Error = "Username already exists.";
+                return View();
+            }
+
+            var syncResult = await EnsureUserProfileForAccountAsync(username, displayName, role);
+            if (!syncResult.Success)
+            {
+                ViewBag.Error = syncResult.ErrorMessage;
                 return View();
             }
 
@@ -197,6 +241,83 @@ namespace HRMgmt.Controllers
         private bool AccountExists(int id)
         {
             return _context.Account.Any(e => e.Id == id);
+        }
+
+        private async Task<(bool Success, bool CreatedUser, string? ErrorMessage)> EnsureUserProfileForAccountAsync(
+            string username,
+            string displayName,
+            string role)
+        {
+            // Keep change small: only ensure Employee accounts are materialized in Users table,
+            // because ShiftAssignment depends on Users.
+            if (!string.Equals(role, "Employee", StringComparison.OrdinalIgnoreCase))
+            {
+                return (true, false, null);
+            }
+
+            var employeeRoleId = await _context.Roles
+                .Where(r => r.RoleName.ToLower() == "employee")
+                .Select(r => r.Id)
+                .FirstOrDefaultAsync();
+
+            if (employeeRoleId == 0)
+            {
+                var roleEntity = new Role { RoleName = "Employee" };
+                _context.Roles.Add(roleEntity);
+                await _context.SaveChangesAsync();
+                employeeRoleId = roleEntity.Id;
+            }
+
+            var (firstName, lastName) = BuildName(displayName, username);
+            var syncAddress = BuildAutoSyncedAddress(username);
+
+            var existingUser = await _context.Users
+                .FirstOrDefaultAsync(u =>
+                    u.Address == syncAddress &&
+                    u.Role == employeeRoleId);
+
+            if (existingUser != null)
+            {
+                return (true, false, null);
+            }
+
+            _context.Users.Add(new User
+            {
+                UserId = Guid.NewGuid(),
+                FirstName = firstName,
+                LastName = lastName,
+                Address = syncAddress,
+                Role = employeeRoleId,
+                HourlyWage = 0m
+            });
+
+            return (true, true, null);
+        }
+
+        private static (string FirstName, string LastName) BuildName(string displayName, string username)
+        {
+            var source = string.IsNullOrWhiteSpace(displayName) ? username : displayName;
+            var cleaned = Regex.Replace(source ?? string.Empty, @"[^a-zA-Z\s'\-]", " ").Trim();
+            var parts = cleaned
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .ToList();
+
+            if (parts.Count == 0)
+            {
+                return ("Employee", "User");
+            }
+
+            if (parts.Count == 1)
+            {
+                return (parts[0], "User");
+            }
+
+            return (parts[0], string.Join(" ", parts.Skip(1)));
+        }
+
+        private static string BuildAutoSyncedAddress(string username)
+        {
+            return $"AutoSynced:{(username ?? string.Empty).Trim().ToLowerInvariant()}";
         }
     }
 }

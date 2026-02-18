@@ -18,5 +18,11 @@ namespace HRMgmt.Models
 
         [Required]
         public DateOnly ShiftDate { get; set; }
+
+        [ForeignKey(nameof(UserId))]
+        public User? User { get; set; }
+
+        [ForeignKey(nameof(ShiftId))]
+        public Shift? Shift { get; set; }
     }
 }
