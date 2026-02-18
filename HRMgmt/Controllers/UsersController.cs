@@ -87,7 +87,7 @@ namespace HRMgmt.Controllers
                 return RedirectToAction("Login", "Account");
             }
 
-            var syncAddress = account.Username;
+            var syncAddress = BuildAutoSyncedAddress(account.Username);
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Address == account.Username);
             
             if (user == null)
@@ -128,13 +128,39 @@ namespace HRMgmt.Controllers
             {
                 return NotFound();
             }
-            
+
+            var sessionAccountString = HttpContext.Session.GetString("UserId");
+            if (string.IsNullOrEmpty(sessionAccountString) || !int.TryParse(sessionAccountString, out var accountId))
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            var account = await _context.Account.FindAsync(accountId);
+            if (account == null)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
             var user = await _context.Users.FindAsync(id);
             if (user == null)
             {
                 return NotFound();
             }
-            return View(user);
+
+            if (string.Equals(account.Role, "Employee", StringComparison.OrdinalIgnoreCase))
+            {
+                var syncAddress = BuildAutoSyncedAddress(account.Username);
+                var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
+
+                if (currentUser == null || currentUser.UserId != id)
+                {
+                    return Forbid();
+                }
+
+                return View(user);
+            }
+
+            return View("AdminEdit", user);
         }
 
         // GET: Users/AdminEdit/5
@@ -159,7 +185,7 @@ namespace HRMgmt.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(Guid id, [Bind("UserId,FirstName,LastName,DateOfBirth,Address,Role,Photo,HourlyWage")] User user)
+        public async Task<IActionResult> Edit(Guid id, [Bind("UserId,FirstName,LastName,DateOfBirth,Address,Photo")] User user)
         {
             if (id != user.UserId)
             {
@@ -170,7 +196,17 @@ namespace HRMgmt.Controllers
             {
                 try
                 {
-                    _context.Update(user);
+                    var existingUser = await _context.Users.FindAsync(id);
+                    if (existingUser == null)
+                    {
+                        return NotFound();
+                    }
+                    existingUser.FirstName = user.FirstName;
+                    existingUser.LastName = user.LastName;
+                    existingUser.DateOfBirth = user.DateOfBirth;
+                    existingUser.Address = user.Address;
+                    existingUser.Photo = user.Photo;
+
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)
