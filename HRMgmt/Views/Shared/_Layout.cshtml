@@ -92,36 +92,18 @@
                     @if (currentRole != null)
                     {
                         <ul class="navbar-nav flex-grow-1">
-                            @if (isEmployee)
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Users" asp-action="Index">Employee</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Shift" asp-action="ShiftAssignment">Schedule</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Shift" asp-action="MyShifts">Shifts</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Payroll" asp-action="Index">Payroll</a>
-                                </li>
-                            }
-                            else
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Users" asp-action="Index">Employee</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Shift" asp-action="ShiftAssignment">Schedule</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Shift" asp-action="Index">Shifts</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Payroll" asp-action="Index">Payroll</a>
-                                </li>
-                            }
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Users" asp-action="Index">Employee</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Shift" asp-action="EmployeeShift">Schedule</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Shift" asp-action="Index">Shifts</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Shift" asp-action="EmployeeShift">Payroll</a>
+                            </li>
                         </ul>
                         <ul class="navbar-nav">
                             <li class="nav-item">
@@ -143,6 +125,10 @@
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="Account" asp-action="Login" asp-route-role="Admin">Admin Login</a>
+                            </li>
+                            <!-- public link for anonymous users to browse shift assignments -->
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="ShiftAssignment" asp-action="Index">Shift Assignments</a>
                             </li>
                         </ul>
                     }
