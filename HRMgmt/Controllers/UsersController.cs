@@ -1,12 +1,14 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using HRMgmt.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using HRMgmt.Models;
+using Microsoft.Identity.Client;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace HRMgmt.Controllers
 {
@@ -23,6 +25,32 @@ namespace HRMgmt.Controllers
         public async Task<IActionResult> Index()
         {
             await EnsureEmployeeUsersSyncedAsync();
+
+            var sessionAccountString = HttpContext.Session.GetString("UserId");
+            if (string.IsNullOrEmpty(sessionAccountString) || !int.TryParse(sessionAccountString, out var accountId))
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            var account = await _context.Account.FindAsync(accountId);
+            if (account == null)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            if (string.Equals(account.Role, "Employee", StringComparison.OrdinalIgnoreCase))
+            {
+                var syncAddress = BuildAutoSyncedAddress(account.Username);
+                var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
+                
+                if (currentUser == null)
+                {
+                    return NotFound();
+                }
+
+                return View("Details", currentUser);
+            }
+
             return View(await _context.Users.ToListAsync());
         }
 
@@ -100,7 +128,7 @@ namespace HRMgmt.Controllers
             {
                 return NotFound();
             }
-
+            
             var user = await _context.Users.FindAsync(id);
             if (user == null)
             {
@@ -108,6 +136,23 @@ namespace HRMgmt.Controllers
             }
             return View(user);
         }
+
+        // GET: Users/AdminEdit/5
+        public async Task<IActionResult> adminEdit(Guid? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+            {
+                return NotFound();
+            }
+            return View("AdminEdit", user);
+        }
+
 
         // POST: Users/Edit/5
         // To protect from overposting attacks, enable the specific properties you want to bind to.
@@ -143,6 +188,8 @@ namespace HRMgmt.Controllers
             }
             return View(user);
         }
+
+
 
         // GET: Users/Delete/5
         public async Task<IActionResult> Delete(Guid? id)
