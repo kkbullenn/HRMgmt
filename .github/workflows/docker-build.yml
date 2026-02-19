@@ -6,7 +6,7 @@ on:
       - test-dev
 
 env:
-  REGISTRY: hrmgtregistry123.azurecr.io
+  REGISTRY: hrmgmtregistry123.azurecr.io
   IMAGE_NAME: hrmgmtapp
 
 jobs:
