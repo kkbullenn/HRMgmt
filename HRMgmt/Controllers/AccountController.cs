@@ -66,6 +66,11 @@ namespace HRMgmt.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
+            if (string.Equals(account.Role, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
             return RedirectToAction("Index", "Users");
         }
 
