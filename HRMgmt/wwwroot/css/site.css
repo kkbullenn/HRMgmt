@@ -175,3 +175,15 @@ th, td {
   font-weight: 600;
   color: var(--primary);
 }
+
+.welcome-only {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.welcome-only h1 {
+  font-size: 3rem;
+  font-weight: 700;
+}

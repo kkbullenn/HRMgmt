@@ -7,28 +7,30 @@
     <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
 </div> *@
 
-
 @{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Home";
+    var userName = Context.Session.GetString("UserName");
 }
 
 <section class="hero-section">
 
-    @if (Context.Session.GetString("UserRole") != null)
+    @if (!string.IsNullOrEmpty(userName))
     {
-        <div class="welcome-message">
-            <h3>
-                Welcome, @Context.Session.GetString("UserName")
-            </h3>
+        <!-- Login status -->
+        <div class="welcome-only">
+            <h1>Welcome back, @userName</h1>
         </div>
     }
-
-    <div class="hero-content">
-        <h1>HR Management</h1>
-        <p>
-            Internal system for managing employee schedules,
-            payroll, and organizational records.
-        </p>
-    </div>
+    else
+    {
+        <!-- Logout status -->
+        <div class="hero-content">
+            <h1>HR Management</h1>
+            <p>
+                Internal system for managing employee schedules,
+                payroll, and organizational records.
+            </p>
+        </div>
+    }
 
 </section>
