@@ -148,6 +148,18 @@ public abstract class BlackboxTestBase
     protected void SelectCalendarEmployee(string employeeToken)
     {
         var employeeSelect = Wait.Until(d => d.FindElement(By.Id("employeeSelect")));
+        Wait.Until(d =>
+        {
+            try
+            {
+                var selectProbe = new SelectElement(d.FindElement(By.Id("employeeSelect")));
+                return selectProbe.Options.Count > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        });
         var select = new SelectElement(employeeSelect);
 
         if (!string.IsNullOrWhiteSpace(employeeToken))

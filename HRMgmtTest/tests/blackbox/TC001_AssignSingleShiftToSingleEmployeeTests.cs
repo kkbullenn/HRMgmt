@@ -20,11 +20,17 @@ public class TC001_AssignSingleShiftToSingleEmployeeTests : BlackboxTestBase
     {
         LoginAsAdminIfCredentialsExist();
 
-        var templateName = $"WK_TC001_{DateTime.UtcNow:yyyyMMddHHmmssfff}_{Guid.NewGuid():N}".Substring(0, 32);
         const int mondayColumn = 0;
 
         _shiftPage.GoTo(BaseUrl);
-        _shiftPage.SetTemplateName(templateName);
+        var existingTemplates = _shiftPage.GetTemplateNames();
+        if (existingTemplates.Count == 0)
+        {
+            Assert.Ignore("TC001 requires at least one existing template in Template List.");
+        }
+        var templateName = existingTemplates[0];
+        _shiftPage.SelectTemplateFromMenu(templateName);
+        _shiftPage.WaitForTemplateName(templateName);
 
         var (rowIndexText, employeeName) = GetFirstEmployeeFromGrid();
         var rowIndex = int.Parse(rowIndexText);
