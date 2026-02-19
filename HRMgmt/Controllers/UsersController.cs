@@ -153,10 +153,11 @@ namespace HRMgmt.Controllers
                         }
 
                         user.UserId = Guid.NewGuid();
-                        if (string.Equals(roleEntity.RoleName, "Employee", StringComparison.OrdinalIgnoreCase))
-                        {
-                            user.Address = BuildAutoSyncedAddress(username);
-                        }
+                        // Commented out to insert actual address into DB
+                        // if (string.Equals(roleEntity.RoleName, "Employee", StringComparison.OrdinalIgnoreCase))
+                        // {
+                        //     user.Address = BuildAutoSyncedAddress(username);
+                        // }
                         _context.Add(user);
                         await _context.SaveChangesAsync();
 
