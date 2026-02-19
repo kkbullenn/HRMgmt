@@ -89,7 +89,7 @@ namespace HRMgmt.Controllers
             }
 
             var syncAddress = BuildAutoSyncedAddress(account.Username);
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Address == account.Username);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
 
             if (user == null)
             {
@@ -116,15 +116,18 @@ namespace HRMgmt.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         // FIXED: Added string username and string password to parameters
-        public async Task<IActionResult> Create([Bind("UserId,FirstName,LastName,DateOfBirth,Address,RoleId,Photo,HourlyWage")] User user, string username, string password)
+        public async Task<IActionResult> Create([Bind("UserId,FirstName,LastName,DateOfBirth,Address,RoleId,Photo,HourlyWage")] User user, string username, string password, IFormFile? photoFile)
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             {
                 ModelState.AddModelError("", "Username and password are required to create a new user account.");
             }
 
+
+
             if (ModelState.IsValid)
             {
+
                 var roleEntity = await _context.Roles.FindAsync(user.RoleId);
                 if (roleEntity == null)
                 {
@@ -140,7 +143,20 @@ namespace HRMgmt.Controllers
 
                     try
                     {
+                        if (photoFile != null && photoFile.Length > 0)
+                        {
+                            using (var memoryStream = new MemoryStream())
+                            {
+                                await photoFile.CopyToAsync(memoryStream);
+                                user.Photo = memoryStream.ToArray();
+                            }
+                        }
+
                         user.UserId = Guid.NewGuid();
+                        if (string.Equals(roleEntity.RoleName, "Employee", StringComparison.OrdinalIgnoreCase))
+                        {
+                            user.Address = BuildAutoSyncedAddress(username);
+                        }
                         _context.Add(user);
                         await _context.SaveChangesAsync();
 
@@ -291,7 +307,7 @@ namespace HRMgmt.Controllers
 
                     if (photoFile != null && photoFile.Length > 0)
                     {
-                        using (var memoryStream = new System.IO.MemoryStream())
+                        using (var memoryStream = new MemoryStream())
                         {
                             await photoFile.CopyToAsync(memoryStream);
                             existingUser.Photo = memoryStream.ToArray();
