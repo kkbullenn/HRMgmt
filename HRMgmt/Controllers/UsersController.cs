@@ -1,11 +1,18 @@
 using HRMgmt.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace HRMgmt.Controllers
 {
+    [Authorize] // Requires the user to be logged in to access anything here
     public class UsersController : Controller
     {
         private readonly OrgDbContext _context;
@@ -20,8 +27,8 @@ namespace HRMgmt.Controllers
         {
             await EnsureEmployeeUsersSyncedAsync();
 
-            var sessionAccountString = HttpContext.Session.GetString("UserId");
-            if (string.IsNullOrEmpty(sessionAccountString) || !int.TryParse(sessionAccountString, out var accountId))
+            var accountIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(accountIdString) || !int.TryParse(accountIdString, out var accountId))
             {
                 return RedirectToAction("Login", "Account");
             }
@@ -36,7 +43,7 @@ namespace HRMgmt.Controllers
             {
                 var syncAddress = BuildAutoSyncedAddress(account.Username);
                 var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
-                
+
                 if (currentUser == null)
                 {
                     return NotFound();
@@ -69,7 +76,7 @@ namespace HRMgmt.Controllers
         //GET:Users/Profile
         public async Task<IActionResult> Profile()
         {
-            var accountIdString = HttpContext.Session.GetString("UserId");
+            var accountIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(accountIdString) || !int.TryParse(accountIdString, out var accountId))
             {
                 return RedirectToAction("Login", "Account");
@@ -82,7 +89,7 @@ namespace HRMgmt.Controllers
             }
 
             var syncAddress = BuildAutoSyncedAddress(account.Username);
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Address == account.Username);
 
             if (user == null)
             {
@@ -106,39 +113,22 @@ namespace HRMgmt.Controllers
         }
 
         // POST: Users/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("UserId,FirstName,LastName,DateOfBirth,Address,Role,Photo,HourlyWage")] User user, string username, string password)
+        // FIXED: Added string username and string password to parameters
+        public async Task<IActionResult> Create([Bind("UserId,FirstName,LastName,DateOfBirth,Address,RoleId,Photo,HourlyWage")] User user, string username, string password)
         {
-            var roles = await _context.Roles
-                .AsNoTracking()
-                .OrderBy(r => r.RoleName)
-                .ToListAsync();
-            ViewBag.Role = new SelectList(roles, "Id", "RoleName", user.Role);
-            ViewData["EnteredUsername"] = username;
-
-            if (string.IsNullOrWhiteSpace(username))
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             {
-                ModelState.AddModelError("Username", "Username is required.");
-            }
-
-            if (string.IsNullOrWhiteSpace(password))
-            {
-                ModelState.AddModelError("Password", "Password is required.");
-            }
-            else if (password.Length < 6)
-            {
-                ModelState.AddModelError("Password", "Password must be at least 6 characters.");
+                ModelState.AddModelError("", "Username and password are required to create a new user account.");
             }
 
             if (ModelState.IsValid)
             {
-                var roleEntity = await _context.Roles.FindAsync(user.Role);
+                var roleEntity = await _context.Roles.FindAsync(user.RoleId);
                 if (roleEntity == null)
                 {
-                    ModelState.AddModelError("Role", "Invalid role selection.");
+                    ModelState.AddModelError("RoleId", "Invalid role selection.");
                 }
                 else if (await _context.Account.AnyAsync(a => a.Username == username))
                 {
@@ -156,6 +146,7 @@ namespace HRMgmt.Controllers
 
                         var displayName = string.Join(" ", new[] { user.FirstName, user.LastName }
                             .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+
                         if (string.IsNullOrWhiteSpace(displayName))
                         {
                             displayName = username;
@@ -184,6 +175,9 @@ namespace HRMgmt.Controllers
                 }
             }
 
+            // Repopulate dropdown if form fails
+            var roles = await _context.Roles.AsNoTracking().OrderBy(r => r.RoleName).ToListAsync();
+            ViewBag.Role = new SelectList(roles, "Id", "RoleName", user.RoleId);
             return View(user);
         }
 
@@ -195,8 +189,8 @@ namespace HRMgmt.Controllers
                 return NotFound();
             }
 
-            var sessionAccountString = HttpContext.Session.GetString("UserId");
-            if (string.IsNullOrEmpty(sessionAccountString) || !int.TryParse(sessionAccountString, out var accountId))
+            var accountIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(accountIdString) || !int.TryParse(accountIdString, out var accountId))
             {
                 return RedirectToAction("Login", "Account");
             }
@@ -247,8 +241,6 @@ namespace HRMgmt.Controllers
 
 
         // POST: Users/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Guid id, [Bind("UserId,FirstName,LastName,DateOfBirth,Address,Photo")] User user, IFormFile? photoFile)
@@ -258,8 +250,8 @@ namespace HRMgmt.Controllers
                 return NotFound();
             }
 
-            var sessionAccountString = HttpContext.Session.GetString("UserId");
-            if (string.IsNullOrEmpty(sessionAccountString) || !int.TryParse(sessionAccountString, out var accountId))
+            var accountIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(accountIdString) || !int.TryParse(accountIdString, out var accountId))
             {
                 return RedirectToAction("Login", "Account");
             }
@@ -267,7 +259,7 @@ namespace HRMgmt.Controllers
             var account = await _context.Account.FindAsync(accountId);
 
 
-            if (string.Equals(account.Role, "Employee", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(account?.Role, "Employee", StringComparison.OrdinalIgnoreCase))
             {
                 var syncAddress = BuildAutoSyncedAddress(account.Username);
                 var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
@@ -299,7 +291,7 @@ namespace HRMgmt.Controllers
 
                     if (photoFile != null && photoFile.Length > 0)
                     {
-                        using (var memoryStream = new MemoryStream())
+                        using (var memoryStream = new System.IO.MemoryStream())
                         {
                             await photoFile.CopyToAsync(memoryStream);
                             existingUser.Photo = memoryStream.ToArray();
@@ -323,8 +315,6 @@ namespace HRMgmt.Controllers
             }
             return View(user);
         }
-
-
 
         // GET: Users/Delete/5
         public async Task<IActionResult> Delete(Guid? id)
@@ -391,7 +381,7 @@ namespace HRMgmt.Controllers
 
                 var exists = await _context.Users.AnyAsync(u =>
                     u.Address == syncAddress &&
-                    u.Role == employeeRoleId);
+                    u.RoleId == employeeRoleId);
 
                 if (exists)
                 {
@@ -404,7 +394,7 @@ namespace HRMgmt.Controllers
                     FirstName = firstName,
                     LastName = lastName,
                     Address = syncAddress,
-                    Role = employeeRoleId,
+                    RoleId = employeeRoleId,
                     HourlyWage = 0m
                 });
                 hasNewUsers = true;
@@ -416,10 +406,11 @@ namespace HRMgmt.Controllers
             }
         }
 
+        // FIXED: Added null coalescing '?? string.Empty' to avoid null reference exceptions
         private static (string FirstName, string LastName) BuildName(string? displayName, string username)
         {
             var source = string.IsNullOrWhiteSpace(displayName) ? username : displayName;
-            var cleaned = Regex.Replace(source, @"[^a-zA-Z\s'\-]", " ").Trim();
+            var cleaned = Regex.Replace(source ?? string.Empty, @"[^a-zA-Z\s'\-]", " ").Trim();
             var parts = cleaned
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .ToList();
@@ -439,7 +430,7 @@ namespace HRMgmt.Controllers
 
         private static string BuildAutoSyncedAddress(string username)
         {
-            return $"AutoSynced:{username.Trim().ToLowerInvariant()}";
+            return $"AutoSynced:{(username ?? string.Empty).Trim().ToLowerInvariant()}";
         }
     }
 }
