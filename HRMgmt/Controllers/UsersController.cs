@@ -102,6 +102,13 @@ namespace HRMgmt.Controllers
         // GET: Users/Create
         public IActionResult Create()
         {
+            var roles = _context.Roles
+                .AsNoTracking()
+                .OrderBy(r => r.RoleName)
+                .ToList();
+
+            ViewBag.Role = new SelectList(roles, "Id", "RoleName");
+            ViewData["EnteredUsername"] = string.Empty;
             return View();
         }
 
@@ -113,11 +120,55 @@ namespace HRMgmt.Controllers
         {
             if (ModelState.IsValid)
             {
-                user.UserId = Guid.NewGuid();
-                _context.Add(user);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                var roleEntity = await _context.Roles.FindAsync(user.Role);
+                if (roleEntity == null)
+                {
+                    ModelState.AddModelError("Role", "Invalid role selection.");
+                }
+                else if (await _context.Account.AnyAsync(a => a.Username == username))
+                {
+                    ModelState.AddModelError("Username", "Username already exists.");
+                }
+                else
+                {
+                    await using var transaction = await _context.Database.BeginTransactionAsync();
+
+                    try
+                    {
+                        user.UserId = Guid.NewGuid();
+                        _context.Add(user);
+                        await _context.SaveChangesAsync();
+
+                        var displayName = string.Join(" ", new[] { user.FirstName, user.LastName }
+                            .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+                        if (string.IsNullOrWhiteSpace(displayName))
+                        {
+                            displayName = username;
+                        }
+
+                        var account = new Account
+                        {
+                            Username = username,
+                            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                            Role = roleEntity.RoleName,
+                            DisplayName = displayName,
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        _context.Account.Add(account);
+                        await _context.SaveChangesAsync();
+
+                        await transaction.CommitAsync();
+                        return RedirectToAction(nameof(Index));
+                    }
+                    catch
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                }
             }
+
             return View(user);
         }
 
@@ -183,11 +234,36 @@ namespace HRMgmt.Controllers
         // POST: Users/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(Guid id, [Bind("UserId,FirstName,LastName,DateOfBirth,Address,Photo")] User user)
+        public async Task<IActionResult> Edit(Guid id, [Bind("UserId,FirstName,LastName,DateOfBirth,Address,Photo")] User user, IFormFile? photoFile)
         {
             if (id != user.UserId)
             {
                 return NotFound();
+            }
+
+            var sessionAccountString = HttpContext.Session.GetString("UserId");
+            if (string.IsNullOrEmpty(sessionAccountString) || !int.TryParse(sessionAccountString, out var accountId))
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            var account = await _context.Account.FindAsync(accountId);
+
+
+            if (string.Equals(account.Role, "Employee", StringComparison.OrdinalIgnoreCase))
+            {
+                var syncAddress = BuildAutoSyncedAddress(account.Username);
+                var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
+
+                if (currentUser == null || currentUser.UserId != id)
+                {
+                    return Forbid();
+                }
+            }
+
+            if (account == null)
+            {
+                return RedirectToAction("Login", "Account");
             }
 
             if (ModelState.IsValid)
@@ -203,7 +279,15 @@ namespace HRMgmt.Controllers
                     existingUser.LastName = user.LastName;
                     existingUser.DateOfBirth = user.DateOfBirth;
                     existingUser.Address = user.Address;
-                    existingUser.Photo = user.Photo;
+
+                    if (photoFile != null && photoFile.Length > 0)
+                    {
+                        using (var memoryStream = new MemoryStream())
+                        {
+                            await photoFile.CopyToAsync(memoryStream);
+                            existingUser.Photo = memoryStream.ToArray();
+                        }
+                    }
 
                     await _context.SaveChangesAsync();
                 }
@@ -318,7 +402,7 @@ namespace HRMgmt.Controllers
         private static (string FirstName, string LastName) BuildName(string? displayName, string username)
         {
             var source = string.IsNullOrWhiteSpace(displayName) ? username : displayName;
-            var cleaned = Regex.Replace(source ?? string.Empty, @"[^a-zA-Z\s'\-]", " ").Trim();
+            var cleaned = Regex.Replace(source, @"[^a-zA-Z\s'\-]", " ").Trim();
             var parts = cleaned
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .ToList();
@@ -338,7 +422,7 @@ namespace HRMgmt.Controllers
 
         private static string BuildAutoSyncedAddress(string username)
         {
-            return $"AutoSynced:{(username ?? string.Empty).Trim().ToLowerInvariant()}";
+            return $"AutoSynced:{username.Trim().ToLowerInvariant()}";
         }
     }
 }
