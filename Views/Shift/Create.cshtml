@@ -1,0 +1,83 @@
+@model HRMgmt.Models.Shift
+@{
+    ViewData["Title"] = "Create Shift";
+}
+<h2>Create Shift</h2>
+@if (ViewBag.DebugError != null)
+{
+    <div class="alert alert-danger">@ViewBag.DebugError</div>
+}
+<form asp-action="Create">
+    <div class="form-group">
+        <label asp-for="Name" class="control-label"></label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="StartTime" class="control-label"></label>
+        <input asp-for="StartTime" class="form-control" type="time" />
+        <span asp-validation-for="StartTime" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="EndTime" class="control-label"></label>
+        <input asp-for="EndTime" class="form-control" type="time" />
+        <span asp-validation-for="EndTime" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="RequiredCount" class="control-label">Required Count</label>
+        <input asp-for="RequiredCount" class="form-control" type="number" min="0" />
+        <span asp-validation-for="RequiredCount" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="StartDate" class="control-label">Start Date</label>
+        <input asp-for="StartDate" class="form-control" type="date" />
+        <span asp-validation-for="StartDate" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="EndDate" class="control-label">End Date</label>
+        <input asp-for="EndDate" class="form-control" type="date" />
+        <span asp-validation-for="EndDate" class="text-danger"></span>
+    </div>
+    @* <div class="form-group">
+        <label asp-for="RecurrenceType" class="control-label">Recurrence Type</label>
+        <select asp-for="RecurrenceType" class="form-control" asp-items="Html.GetEnumSelectList<HRMgmt.Models.RecurrenceType>()"></select>
+        <span asp-validation-for="RecurrenceType" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label class="control-label">Recurrence Days</label><br />
+        @foreach (var day in new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" })
+        {
+            <label class="checkbox-inline mr-2">
+                <input type="checkbox" name="recurrenceDayCheckbox" value="@day" /> @day
+            </label>
+        }
+        <input type="hidden" id="RecurrenceDays" name="RecurrenceDays" value="@(Model?.RecurrenceDays ?? string.Empty)" />
+        <span asp-validation-for="RecurrenceDays" class="text-danger"></span>
+    </div> *@
+    <input type="hidden" asp-for="RecurrenceType" />
+    <input type="hidden" asp-for="RecurrenceDays" value="@(Model?.RecurrenceDays ?? string.Empty)" />
+    <input type="submit" class="btn btn-primary" value="Create" />
+    <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+</form>
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    @* <script>
+        $(function() {
+            var selected = $("#RecurrenceDays").val();
+            if (selected) {
+                var arr = selected.split(',');
+                $("input[name='recurrenceDayCheckbox']").each(function() {
+                    if (arr.includes($(this).val())) $(this).prop('checked', true);
+                });
+            }
+        });
+
+        $("form").submit(function() {
+            var arr = [];
+            $("input[name='recurrenceDayCheckbox']:checked").each(function() {
+                arr.push($(this).val());
+            });
+            $("#RecurrenceDays").val(arr.join(","));
+        });
+    </script> *@
+}
