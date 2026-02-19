@@ -178,6 +178,26 @@ namespace HRMgmt
 
         public IActionResult EmployeeShift()
         {
+            var userRole = HttpContext.Session.GetString("UserRole") ?? "";
+            var accountIdStr = HttpContext.Session.GetString("UserId") ?? "";
+            Guid? employeeUserId = null;
+            if (userRole == "Employee" && int.TryParse(accountIdStr, out int accountId))
+            {
+                var username = _context.Account
+                    .Where(a => a.Id == accountId)
+                    .Select(a => a.Username)
+                    .FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(username))
+                {
+                    var syncAddress = $"AutoSynced:{username.Trim().ToLowerInvariant()}";
+                    employeeUserId = _context.Users
+                        .Where(u => u.Address == syncAddress)
+                        .Select(u => u.UserId)
+                        .FirstOrDefault();
+                }
+            }
+            ViewBag.EmployeeUserId = employeeUserId?.ToString() ?? "";
+            ViewBag.UserRole = userRole;
             return View("~/Views/ShiftAssignment/EmployeeShift.cshtml");
         }
 
