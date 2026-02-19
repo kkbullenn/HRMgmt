@@ -1,11 +1,14 @@
 using HRMgmt.Models;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.CodeAnalysis.Scripting;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Security.Claims;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace HRMgmt.Controllers
 {
@@ -52,6 +55,42 @@ namespace HRMgmt.Controllers
                 return View();
             }
 
+            // Find the corresponding Role to get its perms
+            var roleEntity = await _context.Roles
+                .Include(r => r.RolePermissions)
+                .ThenInclude(rp => rp.Permission)
+                .FirstOrDefaultAsync(r => r.RoleName == account.Role);
+
+            // Build the user's claims
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, account.Id.ToString()),
+                new Claim(ClaimTypes.Name, account.DisplayName ?? account.Username),
+                new Claim(ClaimTypes.Role, account.Role)
+            };
+
+            // Attach perms as claims
+            if (roleEntity != null && roleEntity.RolePermissions != null)
+            {
+                foreach (var rp in roleEntity.RolePermissions)
+                {
+                    if (rp.Permission != null && !string.IsNullOrWhiteSpace(rp.Permission.Name))
+                    {
+                        claims.Add(new Claim("Permission", rp.Permission.Name));
+                    }
+                }
+            }
+
+            // Sign the user in with ASP.NET Core Cookie Auth
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var authProperties = new AuthenticationProperties { IsPersistent = true };
+
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(claimsIdentity),
+                authProperties);
+
+            // Keep session logic temporarily for backward compatibility with un-updated controllers
             HttpContext.Session.SetString("UserRole", account.Role);
             HttpContext.Session.SetString("UserName", account.DisplayName ?? account.Username);
             HttpContext.Session.SetString("UserId", account.Id.ToString());
@@ -71,9 +110,14 @@ namespace HRMgmt.Controllers
 
         // GET: Account/Logout
         [HttpGet]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
+            // Clear the new authentication cookie
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            // Clear the old session
             HttpContext.Session.Clear();
+
             return RedirectToAction("Login", "Account");
         }
 
@@ -253,8 +297,6 @@ namespace HRMgmt.Controllers
             string displayName,
             string role)
         {
-            // Keep change small: only ensure Employee accounts are materialized in Users table,
-            // because ShiftAssignment depends on Users.
             if (!string.Equals(role, "Employee", StringComparison.OrdinalIgnoreCase))
             {
                 return (true, false, null);
@@ -279,7 +321,7 @@ namespace HRMgmt.Controllers
             var existingUser = await _context.Users
                 .FirstOrDefaultAsync(u =>
                     u.Address == syncAddress &&
-                    u.Role == employeeRoleId);
+                    u.RoleId == employeeRoleId);
 
             if (existingUser != null)
             {
@@ -292,7 +334,7 @@ namespace HRMgmt.Controllers
                 FirstName = firstName,
                 LastName = lastName,
                 Address = syncAddress,
-                Role = employeeRoleId,
+                RoleId = employeeRoleId,
                 HourlyWage = 0m
             });
 

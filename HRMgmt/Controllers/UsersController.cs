@@ -1,17 +1,18 @@
 using HRMgmt.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Client;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace HRMgmt.Controllers
 {
+    [Authorize] // Requires the user to be logged in to access anything here
     public class UsersController : Controller
     {
         private readonly OrgDbContext _context;
@@ -26,8 +27,8 @@ namespace HRMgmt.Controllers
         {
             await EnsureEmployeeUsersSyncedAsync();
 
-            var sessionAccountString = HttpContext.Session.GetString("UserId");
-            if (string.IsNullOrEmpty(sessionAccountString) || !int.TryParse(sessionAccountString, out var accountId))
+            var accountIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(accountIdString) || !int.TryParse(accountIdString, out var accountId))
             {
                 return RedirectToAction("Login", "Account");
             }
@@ -42,7 +43,7 @@ namespace HRMgmt.Controllers
             {
                 var syncAddress = BuildAutoSyncedAddress(account.Username);
                 var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
-                
+
                 if (currentUser == null)
                 {
                     return NotFound();
@@ -75,7 +76,7 @@ namespace HRMgmt.Controllers
         //GET:Users/Profile
         public async Task<IActionResult> Profile()
         {
-            var accountIdString = HttpContext.Session.GetString("UserId");
+            var accountIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(accountIdString) || !int.TryParse(accountIdString, out var accountId))
             {
                 return RedirectToAction("Login", "Account");
@@ -89,7 +90,7 @@ namespace HRMgmt.Controllers
 
             var syncAddress = BuildAutoSyncedAddress(account.Username);
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Address == account.Username);
-            
+
             if (user == null)
             {
                 return NotFound();
@@ -105,11 +106,10 @@ namespace HRMgmt.Controllers
         }
 
         // POST: Users/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("UserId,FirstName,LastName,DateOfBirth,Address,Role,Photo,HourlyWage")] User user)
+        // FIXED: Changed 'Role' to 'RoleId' in the Bind attribute
+        public async Task<IActionResult> Create([Bind("UserId,FirstName,LastName,DateOfBirth,Address,RoleId,Photo,HourlyWage")] User user)
         {
             if (ModelState.IsValid)
             {
@@ -129,8 +129,8 @@ namespace HRMgmt.Controllers
                 return NotFound();
             }
 
-            var sessionAccountString = HttpContext.Session.GetString("UserId");
-            if (string.IsNullOrEmpty(sessionAccountString) || !int.TryParse(sessionAccountString, out var accountId))
+            var accountIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(accountIdString) || !int.TryParse(accountIdString, out var accountId))
             {
                 return RedirectToAction("Login", "Account");
             }
@@ -181,8 +181,6 @@ namespace HRMgmt.Controllers
 
 
         // POST: Users/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Guid id, [Bind("UserId,FirstName,LastName,DateOfBirth,Address,Photo")] User user)
@@ -292,7 +290,7 @@ namespace HRMgmt.Controllers
 
                 var exists = await _context.Users.AnyAsync(u =>
                     u.Address == syncAddress &&
-                    u.Role == employeeRoleId);
+                    u.RoleId == employeeRoleId);
 
                 if (exists)
                 {
@@ -305,7 +303,7 @@ namespace HRMgmt.Controllers
                     FirstName = firstName,
                     LastName = lastName,
                     Address = syncAddress,
-                    Role = employeeRoleId,
+                    RoleId = employeeRoleId,
                     HourlyWage = 0m
                 });
                 hasNewUsers = true;
