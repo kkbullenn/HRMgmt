@@ -101,11 +101,26 @@
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="Shift" asp-action="Index">Shifts</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Shift" asp-action="EmployeeShift">Payroll</a>
-                            </li>
+                            @* Payroll nav fix:
+                                - Employee: goes to MyPayroll page
+                                - HR: goes to Payroll/Index (manage payroll records)
+                                - Admin: hide Payroll (Admin uses Admin Payroll link)
+                            *@
+                            @if (string.Equals(currentRole, "Employee", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-controller="Payroll" asp-action="MyPayroll">Payroll</a>
+                                </li>
+                            }
+                            else if (string.Equals(currentRole, "HR", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-controller="Payroll" asp-action="Index">Payroll</a>
+                                </li>
+                            }
+
                             @* Admin-only Payroll Calculation link *@
-                            @if (string.Equals(Context.Session.GetString("UserRole"), "Admin", StringComparison.OrdinalIgnoreCase))
+                            @if (string.Equals(currentRole, "Admin", StringComparison.OrdinalIgnoreCase))
                             {
                                 <li class="nav-item">
                                     <a class="nav-link text-dark"
