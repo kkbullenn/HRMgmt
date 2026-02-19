@@ -1,0 +1,48 @@
+@model IEnumerable<HRMgmt.ViewModels.EmployeeShiftListItemViewModel>
+@{
+    ViewData["Title"] = "Shift List";
+}
+
+<div class="row">
+    <section class="col-12">
+        <h2>Shift List</h2>
+
+        @if (ViewBag.Error != null)
+        {
+            <div class="alert alert-warning">@ViewBag.Error</div>
+        }
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ShiftTemplate</th>
+                    <th>Shift</th>
+                    <th>Date</th>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Any())
+                {
+                    foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.Name</td>
+                            <td>@item.ShiftName</td>
+                            <td>@item.ShiftDate.ToString("yyyy-MM-dd")</td>
+                            <td>@item.StartTime.ToString(@"hh\:mm")</td>
+                            <td>@item.EndTime.ToString(@"hh\:mm")</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" class="text-muted">No shifts assigned yet.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+</div>
