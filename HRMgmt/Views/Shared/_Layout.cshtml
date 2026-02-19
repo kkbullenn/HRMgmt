@@ -85,11 +85,42 @@
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    @{
+                        var currentRole = Context.Session.GetString("UserRole");
+                        var isEmployee = string.Equals(currentRole, "Employee", StringComparison.OrdinalIgnoreCase);
+                    }
+                    @if (currentRole != null)
+                    {
+                        <ul class="navbar-nav flex-grow-1">
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Users" asp-action="Index">Employee</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Shift" asp-action="EmployeeShift">Schedule</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Shift" asp-action="Index">Shifts</a>
+                            </li>
+                            @* Payroll nav fix:
+                                - Employee: goes to MyPayroll page
+                                - HR: goes to Payroll/Index (manage payroll records)
+                                - Admin: hide Payroll (Admin uses Admin Payroll link)
+                            *@
+                            @if (string.Equals(currentRole, "Employee", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-controller="Payroll" asp-action="MyPayroll">Payroll</a>
+                                </li>
+                            }
+                            else if (string.Equals(currentRole, "HR", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-controller="Payroll" asp-action="Index">Payroll</a>
+                                </li>
+                            }
 
-                    <ul class="navbar-nav flex-grow-1">
-                        @if (User.Identity?.IsAuthenticated == true)
-                        {
-                            @if (User.IsInRole("Employee"))
+                            @* Admin-only Payroll Calculation link *@
+                            @if (string.Equals(currentRole, "Admin", StringComparison.OrdinalIgnoreCase))
                             {
                                 <li class="nav-item">
                                     <a class="nav-link text-dark" asp-controller="Shift" asp-action="MyShifts">My Shifts</a>

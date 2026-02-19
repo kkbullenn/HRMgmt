@@ -47,6 +47,16 @@
                 <span asp-validation-for="HourlyWage" class="text-danger"></span>
             </div>
             <div class="form-group">
+                <label class="control-label" for="username">Username</label>
+                <input class="form-control" id="username" name="username" value="@ViewData["EnteredUsername"]" />
+                <span class="text-danger">@Html.ValidationMessage("Username")</span>
+            </div>
+            <div class="form-group">
+                <label class="control-label" for="password">Password</label>
+                <input class="form-control" id="password" name="password" type="password" />
+                <span class="text-danger">@Html.ValidationMessage("Password")</span>
+            </div>
+            <div class="form-group">
                 <input type="submit" value="Create" class="btn btn-primary" />
             </div>
         </form>

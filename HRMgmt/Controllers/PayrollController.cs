@@ -123,100 +123,151 @@ namespace HRMgmt.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // GET: Payroll/AdminCalculate
-        [HttpGet]
-        [Authorize(Roles = "Admin,HR")] // ADDED: Replaces manual HasPayrollAccess check
-        public IActionResult AdminCalculate()
-        {
-            var vm = new AdminPayrollCalcViewModel
-            {
-                StartDate = DateTime.Today.AddDays(-13),
-                EndDate = DateTime.Today
-            };
+		// GET: Payroll/MyPayroll
+		// Employee-only: shows the logged-in employee's own payroll records
+		[HttpGet]
+		public async Task<IActionResult> MyPayroll()
+		{
+			// Only employees should view this page
+			var role = HttpContext.Session.GetString("UserRole");
+			if (!string.Equals(role, "Employee", StringComparison.OrdinalIgnoreCase))
+				return RedirectToAction("Login", "Account", new { role = "Employee" });
 
-            return View(vm);
-        }
+			// Session UserId is Account.Id (int)
+			var accountIdStr = HttpContext.Session.GetString("UserId");
+			if (!int.TryParse(accountIdStr, out var accountId))
+				return RedirectToAction("Login", "Account", new { role = "Employee" });
 
-        // POST: Payroll/AdminCalculate
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,HR")] // ADDED: Replaces manual HasPayrollAccess check
-        public async Task<IActionResult> AdminCalculate(AdminPayrollCalcViewModel vm)
-        {
-            if (vm.EndDate.Date < vm.StartDate.Date)
-                ModelState.AddModelError("", "End date must be on/after start date.");
+			// Get username from Account table
+			var username = await _context.Account
+				.Where(a => a.Id == accountId)
+				.Select(a => a.Username)
+				.FirstOrDefaultAsync();
 
-            if (!ModelState.IsValid)
-                return View(vm);
+			if (string.IsNullOrWhiteSpace(username))
+				return View(new List<Payroll>());
 
-            var start = DateOnly.FromDateTime(vm.StartDate.Date);
-            var end = DateOnly.FromDateTime(vm.EndDate.Date);
+			// Match how employee profiles are stored in Users table
+			var syncAddress = $"AutoSynced:{username.Trim().ToLowerInvariant()}";
 
-            var assignments = await (
-                from sa in _context.ShiftAssignments
-                join sh in _context.Shifts on sa.ShiftId equals sh.ShiftId
-                where sa.ShiftDate >= start && sa.ShiftDate <= end
-                select new
-                {
-                    sa.UserId,
-                    ShiftStart = sh.StartTime,
-                    ShiftEnd = sh.EndTime
-                }
-            ).ToListAsync();
+			// Get the real employee Guid from Users table
+			var employeeUserId = await _context.Users
+				.Where(u => u.Address == syncAddress)
+				.Select(u => u.UserId)
+				.FirstOrDefaultAsync();
 
-            var users = await _context.Users.ToListAsync();
+			if (employeeUserId == Guid.Empty)
+				return View(new List<Payroll>());
 
-            decimal ShiftHours(TimeSpan startTime, TimeSpan endTime)
-            {
-                var dur = endTime - startTime;
-                if (dur.TotalMinutes <= 0) dur = dur.Add(TimeSpan.FromHours(24));
-                return (decimal)dur.TotalHours;
-            }
+			// Pull only THIS employee's payroll rows
+			var myPayrolls = await _context.Payrolls
+				.Where(p => p.UserId == employeeUserId)
+				.OrderByDescending(p => p.PayPeriodEnd)
+				.ToListAsync();
 
-            var rows = new List<AdminPayrollRow>();
+			return View(myPayrolls);
+		}
 
-            foreach (var u in users)
-            {
-                var wage = u.HourlyWage ?? 0m;
-                if (wage <= 0m) continue;
+		// GET: Payroll/AdminCalculate
+		[HttpGet]
+		public IActionResult AdminCalculate()
+		{
+			if (!HasPayrollAccess())
+				return RedirectToAction("Login", "Account", new { role = "HR" });
 
-                var userAssignments = assignments.Where(a => a.UserId == u.UserId).ToList();
-                if (userAssignments.Count == 0) continue;
+			var vm = new AdminPayrollCalcViewModel
+			{
+				StartDate = DateTime.Today.AddDays(-13),
+				EndDate = DateTime.Today
+			};
 
-                var totalHours = userAssignments.Sum(a => ShiftHours(a.ShiftStart, a.ShiftEnd));
-                var gross = totalHours * wage;
+			return View(vm);
+		}
 
-                decimal pensionRate = 0.05m;
-                decimal taxRate = 0.20m;
-                var pension = gross * pensionRate;
-                var tax = gross * taxRate;
-                var net = gross - pension - tax;
+		// POST: Payroll/AdminCalculate
+		[HttpPost]
+		[ValidateAntiForgeryToken]
+		public async Task<IActionResult> AdminCalculate(AdminPayrollCalcViewModel vm)
+		{
+			if (!HasPayrollAccess())
+				return RedirectToAction("Login", "Account", new { role = "HR" });
 
-                rows.Add(new AdminPayrollRow
-                {
-                    UserId = u.UserId,
-                    EmployeeName = $"{u.FirstName} {u.LastName}",
-                    HourlyWage = wage,
-                    ShiftCount = userAssignments.Count,
-                    TotalHours = Math.Round(totalHours, 2),
-                    GrossPay = Math.Round(gross, 2),
-                    PensionDeduction = Math.Round(pension, 2),
-                    TaxDeduction = Math.Round(tax, 2),
-                    NetPay = Math.Round(net, 2)
-                });
-            }
+			if (vm.EndDate.Date < vm.StartDate.Date)
+				ModelState.AddModelError("", "End date must be on/after start date.");
 
-            vm.Rows = rows.OrderBy(r => r.EmployeeName).ToList();
-            vm.TotalHoursAllEmployees = Math.Round(vm.Rows.Sum(r => r.TotalHours), 2);
-            vm.TotalGrossAllEmployees = Math.Round(vm.Rows.Sum(r => r.GrossPay), 2);
-            vm.TotalPensionAllEmployees = Math.Round(vm.Rows.Sum(r => r.PensionDeduction), 2);
-            vm.TotalTaxAllEmployees = Math.Round(vm.Rows.Sum(r => r.TaxDeduction), 2);
-            vm.TotalNetAllEmployees = Math.Round(vm.Rows.Sum(r => r.NetPay), 2);
+			if (!ModelState.IsValid)
+				return View(vm);
 
-            return View(vm);
-        }
+			var start = DateOnly.FromDateTime(vm.StartDate.Date);
+			var end = DateOnly.FromDateTime(vm.EndDate.Date);
 
-        private bool PayrollExists(int id)
+			var assignments = await (
+				from sa in _context.ShiftAssignments
+				join sh in _context.Shifts on sa.ShiftId equals sh.ShiftId
+				where sa.ShiftDate >= start && sa.ShiftDate <= end
+				select new
+				{
+					sa.UserId,
+					ShiftStart = sh.StartTime,
+					ShiftEnd = sh.EndTime
+				}
+			).ToListAsync();
+
+			var users = await _context.Users.ToListAsync();
+
+			decimal ShiftHours(TimeSpan startTime, TimeSpan endTime)
+			{
+				var dur = endTime - startTime;
+				if (dur.TotalMinutes <= 0) dur = dur.Add(TimeSpan.FromHours(24));
+				return (decimal)dur.TotalHours;
+			}
+
+			var rows = new List<AdminPayrollRow>();
+
+			foreach (var u in users)
+			{
+				var wage = u.HourlyWage ?? 0m;
+				if (wage <= 0m) continue;
+
+				var userAssignments = assignments.Where(a => a.UserId == u.UserId).ToList();
+				if (userAssignments.Count == 0) continue;
+
+				var totalHours = userAssignments.Sum(a => ShiftHours(a.ShiftStart, a.ShiftEnd));
+				var gross = totalHours * wage;
+				// Simple fixed deduction rates (admin payroll calculation)
+				decimal pensionRate = 0.05m;   // 5%
+				decimal taxRate = 0.20m;       // 20%
+				var pension = gross * pensionRate;
+				var tax = gross * taxRate;
+				var net = gross - pension - tax;
+
+				rows.Add(new AdminPayrollRow
+				{
+					UserId = u.UserId,
+					EmployeeName = $"{u.FirstName} {u.LastName}",
+					HourlyWage = wage,
+					ShiftCount = userAssignments.Count,
+					TotalHours = Math.Round(totalHours, 2),
+					GrossPay = Math.Round(gross, 2),
+					PensionDeduction = Math.Round(pension, 2),
+					TaxDeduction = Math.Round(tax, 2),
+					NetPay = Math.Round(net, 2)
+				});
+			}
+
+			vm.Rows = rows.OrderBy(r => r.EmployeeName).ToList();
+			vm.TotalHoursAllEmployees = Math.Round(vm.Rows.Sum(r => r.TotalHours), 2);
+			vm.TotalGrossAllEmployees = Math.Round(vm.Rows.Sum(r => r.GrossPay), 2);
+			vm.TotalPensionAllEmployees = Math.Round(vm.Rows.Sum(r => r.PensionDeduction), 2);
+			vm.TotalTaxAllEmployees = Math.Round(vm.Rows.Sum(r => r.TaxDeduction), 2);
+			vm.TotalNetAllEmployees = Math.Round(vm.Rows.Sum(r => r.NetPay), 2);
+
+
+			return View(vm);
+		}
+
+
+		private bool PayrollExists(int id)
         {
             return _context.Payrolls.Any(e => e.Id == id);
         }
