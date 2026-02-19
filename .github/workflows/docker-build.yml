@@ -22,12 +22,13 @@ jobs:
   
     - name: Login to ACR
       run: echo ${{ secrets.ACR_PASSWORD }} | docker login hrmgmtregistry123.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
-  
-    - name: Build and Push AMD64 image
-      run: |
-        docker buildx build \
-          --platform linux/amd64 \
-          -t hrmgmtregistry123.azurecr.io/hrmgmtapp:latest \
-          --push \
-          .
-            .
+
+  - name: Build and Push AMD64 image
+    run: |
+      docker buildx build \
+        --platform linux/amd64 \
+        -t $REGISTRY/$IMAGE_NAME:latest \
+        --push \
+        -f HRMgmt/Dockerfile \
+        HRMgmt
+
