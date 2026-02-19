@@ -163,3 +163,15 @@ th, td {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
 }
+
+/* ================================
+  Welcom Message
+================================ */
+.welcome-message {
+  margin-bottom: 1.5rem;
+}
+
+.welcome-message h3 {
+  font-weight: 600;
+  color: var(--primary);
+}
