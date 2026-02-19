@@ -23,7 +23,10 @@ namespace HRMgmt.Models
         public string Address { get; set; }
 
         [Required]
-        public int Role { get; set; }
+        public int RoleId { get; set; }
+
+        [ForeignKey(nameof(RoleId))]
+        public Role? RoleNavigation { get; set; }
 
         public byte[]? Photo { get; set; }
 
