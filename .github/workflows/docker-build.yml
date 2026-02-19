@@ -27,8 +27,9 @@ jobs:
     run: |
       docker buildx build \
         --platform linux/amd64 \
+        -f ./HRMgmt/Dockerfile \
         -t $REGISTRY/$IMAGE_NAME:latest \
         --push \
-        -f HRMgmt/Dockerfile \
-        HRMgmt
+        ./HRMgmt
 
+        
