@@ -2,9 +2,8 @@ name: Build and Deploy to ACR
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - test-dev
+  pull_request:
+    branches: [ test-dev, main, dev, devops/docker ]
 
 env:
   REGISTRY: hrmgmtregistry123.azurecr.io
@@ -29,6 +28,6 @@ jobs:
           docker buildx build \
             --platform linux/amd64 \
             -f HRMgmt/Dockerfile \
-            -t $REGISTRY/$IMAGE_NAME:latest \
+            -t $REGISTRY/$IMAGE_NAME:pr-${{ github.event.pull_request.number }} \
             --push \
             ./HRMgmt
