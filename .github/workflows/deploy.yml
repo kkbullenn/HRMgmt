@@ -1,9 +1,19 @@
-name: Build and Deploy to Azure Container Reposiories
+name: Build and Deploy to Azure Container Registry
 
 on:
   push:
     branches:
+      - main
       - dev
+      - 'devops/**'
+      - 'feature/**'
+
+  pull_request:
+    branches:
+      - main
+      - dev
+      - 'feature/**'
+      - 'devops/**'
 
 env:
   REGISTRY: hrmgmtregistry123.azurecr.io
@@ -14,7 +24,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Login to Azure
         uses: azure/login@v1
