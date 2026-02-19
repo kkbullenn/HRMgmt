@@ -61,6 +61,11 @@ namespace HRMgmt.Controllers
                 return RedirectToAction("MyShifts", "Shift");
             }
 
+            if (string.Equals(account.Role, "HR", StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
             return RedirectToAction("Index", "Users");
         }
 

@@ -1,4 +1,4 @@
-﻿@* <!DOCTYPE html>
+@* <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -92,34 +92,27 @@
                     @if (currentRole != null)
                     {
                         <ul class="navbar-nav flex-grow-1">
-                            @if (isEmployee)
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Users" asp-action="Index">Employee</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Shift" asp-action="EmployeeShift">Schedule</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Shift" asp-action="Index">Shifts</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Shift" asp-action="EmployeeShift">Payroll</a>
+                            </li>
+                            @* Admin-only Payroll Calculation link *@
+                            @if (string.Equals(Context.Session.GetString("UserRole"), "Admin", StringComparison.OrdinalIgnoreCase))
                             {
                                 <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Users" asp-action="Index">Employee</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Shift" asp-action="ShiftAssignment">Schedule</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Shift" asp-action="MyShifts">Shifts</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Payroll" asp-action="Index">Payroll</a>
-                                </li>
-                            }
-                            else
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Users" asp-action="Index">Employee</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Shift" asp-action="ShiftAssignment">Schedule</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Shift" asp-action="Index">Shifts</a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Payroll" asp-action="Index">Payroll</a>
+                                    <a class="nav-link text-dark"
+                                       asp-controller="Payroll"
+                                       asp-action="AdminCalculate">
+                                        Admin Payroll
+                                    </a>
                                 </li>
                             }
                         </ul>

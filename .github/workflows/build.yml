@@ -3,9 +3,9 @@ name: Build ASP.NET Core MVC App
 on:
   workflow_dispatch:  
   push:
-    branches: [ main, dev ]
+    branches: [ main, dev, test-dev ]
   pull_request:
-    branches: [ main, dev, 'feature/**' ]
+    branches: [ main, dev, test-dev, 'feature/**' ]
 
 jobs:
   build:
