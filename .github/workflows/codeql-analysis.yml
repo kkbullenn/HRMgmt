@@ -2,7 +2,7 @@ name: "CodeQL Security Analysis"
 
 on:
   push:
-    branches: [ main, dev, test-dev ]
+    branches: [ main, dev, test-dev, fix/bullen-buildpaths ]
   pull_request:
     branches: [ main, dev, test-dev, 'feature/**' ]
   schedule:
@@ -42,7 +42,7 @@ jobs:
       run: dotnet restore
 
     - name: Build project
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build ./HRMgmt.sln --configuration Release --no-restore
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3

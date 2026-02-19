@@ -1,4 +1,4 @@
-name: Build ASP.NET Core MVC App
+name: Build 
 on:
   workflow_dispatch:  
   push:
@@ -26,10 +26,10 @@ jobs:
       run: |
         if [ "${{ github.ref }}" == "refs/heads/main" ]; then
           echo "Building main branch with warnings as errors"
-          dotnet build --configuration Release --no-restore /p:TreatWarningsAsErrors=true
+          dotnet build ./HRMgmt.sln --configuration Release --no-restore /p:TreatWarningsAsErrors=true
         else
           echo "Building with warnings enabled but not blocking"
-          dotnet build --configuration Release --no-restore
+          dotnet build ./HRMgmt.sln --configuration Release --no-restore
         fi
     
     # Optional: Run tests once we have them
