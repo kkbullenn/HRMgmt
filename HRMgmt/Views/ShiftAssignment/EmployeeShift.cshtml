@@ -1,11 +1,17 @@
 @{
     ViewData["Title"] = "Employee Shift Calendar";
 }
-<h2>Employee Shift Calendar</h2>
+<h2 style="margin-bottom: 0;">Employee Shift Calendar</h2>
+@{
+    var userRole = ViewBag.UserRole as string ?? "";
+    var employeeUserId = ViewBag.EmployeeUserId as string ?? "";
+}
+@if (userRole != "Employee") {
 <div class="form-group mb-3">
     <label for="employeeSelect">Select Employee:</label>
     <select id="employeeSelect" class="form-control" style="max-width:300px;display:inline-block"></select>
 </div>
+}
 <div id="calendar"></div>
 
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
@@ -34,6 +40,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var userRole = '@userRole';
+    var currentUserId = '@employeeUserId';
     var calendarEl = document.getElementById('calendar');
     var employeeSelect = document.getElementById('employeeSelect');
     var currentEmployeeId = null;
@@ -52,37 +60,45 @@ document.addEventListener('DOMContentLoaded', function() {
             cachedShifts = shifts;
             var shiftIds = shifts.map(s => s.id);
             shiftColorMap = window.ShiftColorUtils ? ShiftColorUtils.buildMap(shiftIds) : {};
-            fetch('/Shift/GetEmployees')
-                .then(r => r.json())
-                .then(data => {
-                    data.forEach(emp => {
-                        var opt = document.createElement('option');
-                        opt.value = emp.id;
-                        opt.text = emp.name;
-                        employeeSelect.appendChild(opt);
+            if (userRole === 'Employee') {
+                currentEmployeeId = currentUserId;
+                initCalendar();
+            } else {
+                fetch('/Shift/GetEmployees')
+                    .then(r => r.json())
+                    .then(data => {
+                        data.forEach(emp => {
+                            var opt = document.createElement('option');
+                            opt.value = emp.id;
+                            opt.text = emp.name;
+                            employeeSelect.appendChild(opt);
+                        });
+                        if (data.length > 0) {
+                            currentEmployeeId = data[0].id;
+                            initCalendar();
+                        }
                     });
-                    if (data.length > 0) {
-                        currentEmployeeId = data[0].id;
-                        initCalendar();
-                    }
-                });
+            }
         });
 
-    employeeSelect.addEventListener('change', function() {
-        currentEmployeeId = this.value;
-        if (calendar) {
-            calendar.setOption('events', '/Shift/GetEmployeeShifts?employeeId=' + currentEmployeeId);
-            calendar.refetchEvents();
-        }
-    });
+    if (employeeSelect) {
+        employeeSelect.addEventListener('change', function() {
+            currentEmployeeId = this.value;
+            if (calendar) {
+                calendar.setOption('events', '/Shift/GetEmployeeShifts?employeeId=' + currentEmployeeId);
+                calendar.refetchEvents();
+            }
+        });
+    }
 
     var calendar = null;
     function initCalendar() {
+        var isEmployee = userRole === 'Employee';
         calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             firstDay: 0,
-            editable: true,
-            selectable: true,
+            editable: !isEmployee,
+            selectable: !isEmployee,
             events: '/Shift/GetEmployeeShifts?employeeId=' + currentEmployeeId,
             eventContent: function(arg) {
                 // Use shiftId to get color
@@ -104,7 +120,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     info.el.style.position = 'static';
                 }
             },
-            dateClick: function(info) {
+            dateClick: isEmployee ? null : function(info) {
                 let oldDropdown = document.getElementById('shiftDropdown');
                 if (oldDropdown) oldDropdown.remove();
                 let dropdown = document.createElement('select');
@@ -172,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 document.body.appendChild(dropdown);
             },
-            eventClick: function(info) {
+            eventClick: isEmployee ? null : function(info) {
                 if (confirm('Delete this shift assignment?')) {
                     fetch('/Shift/DeleteEmployeeShift', {
                         method: 'POST',
@@ -201,6 +217,21 @@ document.addEventListener('DOMContentLoaded', function() {
             },
         });
         calendar.render();
+        // Insert Create Shift button before today button after calendar is rendered
+        setTimeout(function() {
+            if (userRole === 'Admin' || userRole === 'Manager') {
+                var todayBtn = document.querySelector('.fc-today-button');
+                if (todayBtn && !document.getElementById('createShiftBtn')) {
+                    var btn = document.createElement('a');
+                    btn.href = '/Shift';
+                    btn.id = 'createShiftBtn';
+                    btn.innerText = 'Create Shift';
+                    btn.className = todayBtn.className + ' btn btn-primary';
+                    btn.style.marginRight = '8px';
+                    todayBtn.parentNode.insertBefore(btn, todayBtn);
+                }
+            }
+        }, 0);
     }
 });
 </script>
