@@ -1,4 +1,4 @@
-name: Build and Deploy to ACR
+name: Dockerize and Publish
 
 on:
   workflow_dispatch:

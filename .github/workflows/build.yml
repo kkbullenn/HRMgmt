@@ -1,4 +1,4 @@
-name: Build ASP.NET Core MVC App
+name: Build
 
 on:
   workflow_dispatch:  
