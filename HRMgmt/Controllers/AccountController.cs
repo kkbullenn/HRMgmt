@@ -1,10 +1,6 @@
 using HRMgmt.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.CodeAnalysis.Scripting;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 
 namespace HRMgmt.Controllers
@@ -58,10 +54,15 @@ namespace HRMgmt.Controllers
 
             if (string.Equals(account.Role, "Employee", StringComparison.OrdinalIgnoreCase))
             {
-                return RedirectToAction("MyShifts", "Shift");
+                return RedirectToAction("Index", "Home");
             }
 
             if (string.Equals(account.Role, "HR", StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
+            if (string.Equals(account.Role, "Admin", StringComparison.OrdinalIgnoreCase))
             {
                 return RedirectToAction("Index", "Home");
             }
@@ -302,27 +303,22 @@ namespace HRMgmt.Controllers
         private static (string FirstName, string LastName) BuildName(string displayName, string username)
         {
             var source = string.IsNullOrWhiteSpace(displayName) ? username : displayName;
-            var cleaned = Regex.Replace(source ?? string.Empty, @"[^a-zA-Z\s'\-]", " ").Trim();
+            var cleaned = Regex.Replace(source, @"[^a-zA-Z\s'\-]", " ").Trim();
             var parts = cleaned
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .ToList();
 
-            if (parts.Count == 0)
+            return parts.Count switch
             {
-                return ("Employee", "User");
-            }
-
-            if (parts.Count == 1)
-            {
-                return (parts[0], "User");
-            }
-
-            return (parts[0], string.Join(" ", parts.Skip(1)));
+                0 => ("Employee", "User"),
+                1 => (parts[0], "User"),
+                _ => (parts[0], string.Join(" ", parts.Skip(1)))
+            };
         }
 
         private static string BuildAutoSyncedAddress(string username)
         {
-            return $"AutoSynced:{(username ?? string.Empty).Trim().ToLowerInvariant()}";
+            return $"AutoSynced:{username.Trim().ToLowerInvariant()}";
         }
     }
 }
