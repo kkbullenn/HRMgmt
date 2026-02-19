@@ -158,6 +158,51 @@ namespace HRMgmt.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+		// GET: Payroll/MyPayroll
+		// Employee-only: shows the logged-in employee's own payroll records
+		[HttpGet]
+		public async Task<IActionResult> MyPayroll()
+		{
+			// Only employees should view this page
+			var role = HttpContext.Session.GetString("UserRole");
+			if (!string.Equals(role, "Employee", StringComparison.OrdinalIgnoreCase))
+				return RedirectToAction("Login", "Account", new { role = "Employee" });
+
+			// Session UserId is Account.Id (int)
+			var accountIdStr = HttpContext.Session.GetString("UserId");
+			if (!int.TryParse(accountIdStr, out var accountId))
+				return RedirectToAction("Login", "Account", new { role = "Employee" });
+
+			// Get username from Account table
+			var username = await _context.Account
+				.Where(a => a.Id == accountId)
+				.Select(a => a.Username)
+				.FirstOrDefaultAsync();
+
+			if (string.IsNullOrWhiteSpace(username))
+				return View(new List<Payroll>());
+
+			// Match how employee profiles are stored in Users table
+			var syncAddress = $"AutoSynced:{username.Trim().ToLowerInvariant()}";
+
+			// Get the real employee Guid from Users table
+			var employeeUserId = await _context.Users
+				.Where(u => u.Address == syncAddress)
+				.Select(u => u.UserId)
+				.FirstOrDefaultAsync();
+
+			if (employeeUserId == Guid.Empty)
+				return View(new List<Payroll>());
+
+			// Pull only THIS employee's payroll rows
+			var myPayrolls = await _context.Payrolls
+				.Where(p => p.UserId == employeeUserId)
+				.OrderByDescending(p => p.PayPeriodEnd)
+				.ToListAsync();
+
+			return View(myPayrolls);
+		}
+
 		// GET: Payroll/AdminCalculate
 		[HttpGet]
 		public IActionResult AdminCalculate()
