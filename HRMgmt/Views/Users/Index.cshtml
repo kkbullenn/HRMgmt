@@ -49,7 +49,16 @@
                 @Html.DisplayFor(modelItem => item.Address)
             </td>
             <td>
-                @Html.DisplayFor(modelItem => item.Photo)
+                    @if (item.Photo != null && item.Photo.Length > 0)
+                    {
+                        var base64 = Convert.ToBase64String(item.Photo);
+                        var imgSrc = $"data:image/jpeg;base64,{base64}";
+                        <img src="@imgSrc" alt="Client Photo" class="img-fluid" style="max-width: 150px; max-height: 150px">
+                    }
+                    else
+                    {
+                      <span class="text-warning">No image available</span>
+                    }
             </td>
             <td>
                 @Html.DisplayFor(modelItem => item.HourlyWage)
