@@ -39,10 +39,10 @@ jobs:
         # queries: security-extended,security-and-quality
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore ./HRMgmt.sln
 
     - name: Build project
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build ./HRMgmt.sln --configuration Release --no-restore
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
