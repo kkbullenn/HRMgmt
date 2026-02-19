@@ -54,7 +54,7 @@ namespace HRMgmt.Controllers
 
             if (string.Equals(account.Role, "Employee", StringComparison.OrdinalIgnoreCase))
             {
-                return RedirectToAction("MyShifts", "Shift");
+                return RedirectToAction("Index", "Home");
             }
 
             if (string.Equals(account.Role, "HR", StringComparison.OrdinalIgnoreCase))
