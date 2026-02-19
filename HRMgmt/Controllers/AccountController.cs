@@ -25,32 +25,31 @@ namespace HRMgmt.Controllers
         // AUTH: LOGIN / SIGNUP / LOGOUT
         // =========================
 
-        // GET: Account/Login?role=Employee
+        // GET: Account/Login
         [HttpGet]
-        public IActionResult Login(string role)
+        public IActionResult Login() // REMOVED: string role
         {
-            ViewBag.Role = role;
+            // REMOVED: ViewBag.Role = role;
             return View();
         }
 
         // POST: Account/Login
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(string username, string password, string role)
+        public async Task<IActionResult> Login(string username, string password) // REMOVED: string role
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             {
-                ViewBag.Role = role;
                 ViewBag.Error = "Username and password are required.";
                 return View();
             }
 
+            // CHANGED: Search only by Username, let the database tell us the role!
             var account = await _context.Account
-                .FirstOrDefaultAsync(a => a.Username == username && a.Role == role);
+                .FirstOrDefaultAsync(a => a.Username == username);
 
             if (account == null || !BCrypt.Net.BCrypt.Verify(password, account.PasswordHash))
             {
-                ViewBag.Role = role;
                 ViewBag.Error = "Invalid username or password.";
                 return View();
             }
@@ -95,6 +94,7 @@ namespace HRMgmt.Controllers
             HttpContext.Session.SetString("UserName", account.DisplayName ?? account.Username);
             HttpContext.Session.SetString("UserId", account.Id.ToString());
 
+            // Redirect automatically based on the role found in the database
             if (string.Equals(account.Role, "Employee", StringComparison.OrdinalIgnoreCase))
             {
                 return RedirectToAction("MyShifts", "Shift");
