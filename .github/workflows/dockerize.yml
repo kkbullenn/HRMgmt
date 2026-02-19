@@ -3,7 +3,7 @@ name: Dockerize and Publish
 on:
   workflow_dispatch:
   pull_request:
-    branches: [ test-dev, main, dev, devops/docker ]
+    branches: [ main, dev, devops/docker ]
 
 env:
   REGISTRY: hrmgmtregistry123.azurecr.io
