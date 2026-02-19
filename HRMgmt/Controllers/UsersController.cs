@@ -115,15 +115,20 @@ namespace HRMgmt.Controllers
         // POST: Users/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        // FIXED: Changed 'Role' to 'RoleId' in the Bind attribute
-        public async Task<IActionResult> Create([Bind("UserId,FirstName,LastName,DateOfBirth,Address,RoleId,Photo,HourlyWage")] User user)
+        // FIXED: Added string username and string password to parameters
+        public async Task<IActionResult> Create([Bind("UserId,FirstName,LastName,DateOfBirth,Address,RoleId,Photo,HourlyWage")] User user, string username, string password)
         {
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            {
+                ModelState.AddModelError("", "Username and password are required to create a new user account.");
+            }
+
             if (ModelState.IsValid)
             {
-                var roleEntity = await _context.Roles.FindAsync(user.Role);
+                var roleEntity = await _context.Roles.FindAsync(user.RoleId);
                 if (roleEntity == null)
                 {
-                    ModelState.AddModelError("Role", "Invalid role selection.");
+                    ModelState.AddModelError("RoleId", "Invalid role selection.");
                 }
                 else if (await _context.Account.AnyAsync(a => a.Username == username))
                 {
@@ -141,6 +146,7 @@ namespace HRMgmt.Controllers
 
                         var displayName = string.Join(" ", new[] { user.FirstName, user.LastName }
                             .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+
                         if (string.IsNullOrWhiteSpace(displayName))
                         {
                             displayName = username;
@@ -169,6 +175,9 @@ namespace HRMgmt.Controllers
                 }
             }
 
+            // Repopulate dropdown if form fails
+            var roles = await _context.Roles.AsNoTracking().OrderBy(r => r.RoleName).ToListAsync();
+            ViewBag.Role = new SelectList(roles, "Id", "RoleName", user.RoleId);
             return View(user);
         }
 
@@ -241,8 +250,8 @@ namespace HRMgmt.Controllers
                 return NotFound();
             }
 
-            var sessionAccountString = HttpContext.Session.GetString("UserId");
-            if (string.IsNullOrEmpty(sessionAccountString) || !int.TryParse(sessionAccountString, out var accountId))
+            var accountIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(accountIdString) || !int.TryParse(accountIdString, out var accountId))
             {
                 return RedirectToAction("Login", "Account");
             }
@@ -250,7 +259,7 @@ namespace HRMgmt.Controllers
             var account = await _context.Account.FindAsync(accountId);
 
 
-            if (string.Equals(account.Role, "Employee", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(account?.Role, "Employee", StringComparison.OrdinalIgnoreCase))
             {
                 var syncAddress = BuildAutoSyncedAddress(account.Username);
                 var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
@@ -282,7 +291,7 @@ namespace HRMgmt.Controllers
 
                     if (photoFile != null && photoFile.Length > 0)
                     {
-                        using (var memoryStream = new MemoryStream())
+                        using (var memoryStream = new System.IO.MemoryStream())
                         {
                             await photoFile.CopyToAsync(memoryStream);
                             existingUser.Photo = memoryStream.ToArray();
@@ -306,8 +315,6 @@ namespace HRMgmt.Controllers
             }
             return View(user);
         }
-
-
 
         // GET: Users/Delete/5
         public async Task<IActionResult> Delete(Guid? id)
@@ -399,10 +406,11 @@ namespace HRMgmt.Controllers
             }
         }
 
+        // FIXED: Added null coalescing '?? string.Empty' to avoid null reference exceptions
         private static (string FirstName, string LastName) BuildName(string? displayName, string username)
         {
             var source = string.IsNullOrWhiteSpace(displayName) ? username : displayName;
-            var cleaned = Regex.Replace(source, @"[^a-zA-Z\s'\-]", " ").Trim();
+            var cleaned = Regex.Replace(source ?? string.Empty, @"[^a-zA-Z\s'\-]", " ").Trim();
             var parts = cleaned
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .ToList();
@@ -422,7 +430,7 @@ namespace HRMgmt.Controllers
 
         private static string BuildAutoSyncedAddress(string username)
         {
-            return $"AutoSynced:{username.Trim().ToLowerInvariant()}";
+            return $"AutoSynced:{(username ?? string.Empty).Trim().ToLowerInvariant()}";
         }
     }
 }
