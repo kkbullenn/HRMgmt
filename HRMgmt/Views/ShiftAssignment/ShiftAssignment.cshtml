@@ -36,7 +36,7 @@
             <a href="#" onclick="createNewTemplate();return false;" style="color:#007bff; font-weight:bold;">+ Create new template</a>
         </div>
     </div>
-    <div class="assigngrid-main">
+<div class="assigngrid-main">
     <style>
         .floating-feedback {
             position: fixed;
@@ -117,54 +117,54 @@
 
         <table class="table table-bordered" id="shiftTable">
             <thead>
-                <tr>
-                    <th colspan="9" class="text-center bg-light" id="gridWeekHeader" style="font-size:1.8rem;font-weight:700;letter-spacing:0.2px;">Week 1</th>
-                </tr>
-                <tr>
-                    <th style="width:40px;"></th>
-                    <th>Employee</th>
-                    @for (int d = 0; d < daysOfWeek.Length; d++)
-                    {
-                        <th>
-                            <div>@daysOfWeek[d]</div>
-                            <div class="batch-tools">
-                                <select id="batchShift-@d" class="form-select form-select-sm batch-select">
-                                    <option value="">Clear</option>
-                                    @foreach (var s in shiftTypes)
-                                    {
-                                        <option value="@s.Key">@s.Name</option>
-                                    }
-                                </select>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyBatchFromHeader(@d)">Apply</button>
-                            </div>
-                        </th>
-                    }
-                </tr>
+            <tr>
+                <th colspan="9" class="text-center bg-light" id="gridWeekHeader" style="font-size:1.8rem;font-weight:700;letter-spacing:0.2px;">Week 1</th>
+            </tr>
+            <tr>
+                <th style="width:40px;"></th>
+                <th>Employee</th>
+                @for (int d = 0; d < daysOfWeek.Length; d++)
+                {
+                    <th>
+                        <div>@daysOfWeek[d]</div>
+                        <div class="batch-tools">
+                            <select id="batchShift-@d" class="form-select form-select-sm batch-select">
+                                <option value="">Clear</option>
+                                @foreach (var s in shiftTypes)
+                                {
+                                    <option value="@s.Key">@s.Name</option>
+                                }
+                            </select>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyBatchFromHeader(@d)">Apply</button>
+                        </div>
+                    </th>
+                }
+            </tr>
             </thead>
             <tbody>
-                @for (int i = 0; i < users.Count; i++)
-                {
-                    <tr data-row="@i">
-                        <input type="hidden" name="Users[@i].UserId" value="@users[i].UserId" class="user-id-input" />
-                        <td class="checkbox-cell"><input type="checkbox" class="row-select" data-row="@i" /></td>
-                        <td class="emp-name" style="cursor:pointer;">@($"{users[i].FirstName} {users[i].LastName}")</td>
-                        @for (int j = 0; j < daysOfWeek.Length; j++)
-                        {
-                            var idx = i * daysOfWeek.Length + j;
-                            var cellValue = grid[idx];
-                            <td>
-                                <input type="hidden" name="Grid[@idx]" value="@cellValue" />
-                                <select class="shift-dropdown shift-cell" data-row="@i" data-col="@j" style="width:100%;height:32px;padding:0 8px;border-radius:4px;font-weight:bold;text-align:center;background:#dee2e6;color:#888;">
-                                    <option value="" selected="@string.IsNullOrEmpty(cellValue)"> </option>
-                                    @foreach (var s in shiftTypes)
-                                    {
-                                        <option value="@s.Key" selected="@(cellValue == s.Key)">@s.Label</option>
-                                    }
-                                </select>
-                            </td>
-                        }
-                    </tr>
-                }
+            @for (int i = 0; i < users.Count; i++)
+            {
+                <tr data-row="@i">
+                    <input type="hidden" name="Users[@i].UserId" value="@users[i].UserId" class="user-id-input" />
+                    <td class="checkbox-cell"><input type="checkbox" class="row-select" data-row="@i" /></td>
+                    <td class="emp-name" style="cursor:pointer;">@($"{users[i].FirstName} {users[i].LastName}")</td>
+                    @for (int j = 0; j < daysOfWeek.Length; j++)
+                    {
+                        var idx = i * daysOfWeek.Length + j;
+                        var cellValue = grid[idx];
+                        <td>
+                            <input type="hidden" name="Grid[@idx]" value="@cellValue" />
+                            <select class="shift-dropdown shift-cell" data-row="@i" data-col="@j" style="width:100%;height:32px;padding:0 8px;border-radius:4px;font-weight:bold;text-align:center;background:#dee2e6;color:#888;">
+                                <option value="" selected="@string.IsNullOrEmpty(cellValue)"> </option>
+                                @foreach (var s in shiftTypes)
+                                {
+                                    <option value="@s.Key" selected="@(cellValue == s.Key)">@s.Label</option>
+                                }
+                            </select>
+                        </td>
+                    }
+                </tr>
+            }
             </tbody>
         </table>
 
@@ -182,6 +182,7 @@
         </div>
         <button type="button" id="deleteTemplateBtn" class="btn btn-outline-danger ms-auto" style="position:relative; right:-50px;" disabled>Delete Template</button>
     </div>
+</div>
 </div>
 
 <script src="~/js/shift-colors.js" asp-append-version="true"></script>
