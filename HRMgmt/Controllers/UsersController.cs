@@ -2,13 +2,7 @@ using HRMgmt.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Client;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace HRMgmt.Controllers
 {
@@ -101,6 +95,13 @@ namespace HRMgmt.Controllers
         // GET: Users/Create
         public IActionResult Create()
         {
+            var roles = _context.Roles
+                .AsNoTracking()
+                .OrderBy(r => r.RoleName)
+                .ToList();
+
+            ViewBag.Role = new SelectList(roles, "Id", "RoleName");
+            ViewData["EnteredUsername"] = string.Empty;
             return View();
         }
 
@@ -109,15 +110,80 @@ namespace HRMgmt.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("UserId,FirstName,LastName,DateOfBirth,Address,Role,Photo,HourlyWage")] User user)
+        public async Task<IActionResult> Create([Bind("UserId,FirstName,LastName,DateOfBirth,Address,Role,Photo,HourlyWage")] User user, string username, string password)
         {
+            var roles = await _context.Roles
+                .AsNoTracking()
+                .OrderBy(r => r.RoleName)
+                .ToListAsync();
+            ViewBag.Role = new SelectList(roles, "Id", "RoleName", user.Role);
+            ViewData["EnteredUsername"] = username;
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                ModelState.AddModelError("Username", "Username is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                ModelState.AddModelError("Password", "Password is required.");
+            }
+            else if (password.Length < 6)
+            {
+                ModelState.AddModelError("Password", "Password must be at least 6 characters.");
+            }
+
             if (ModelState.IsValid)
             {
-                user.UserId = Guid.NewGuid();
-                _context.Add(user);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                var roleEntity = await _context.Roles.FindAsync(user.Role);
+                if (roleEntity == null)
+                {
+                    ModelState.AddModelError("Role", "Invalid role selection.");
+                }
+                else if (await _context.Account.AnyAsync(a => a.Username == username))
+                {
+                    ModelState.AddModelError("Username", "Username already exists.");
+                }
+                else
+                {
+                    await using var transaction = await _context.Database.BeginTransactionAsync();
+
+                    try
+                    {
+                        user.UserId = Guid.NewGuid();
+                        _context.Add(user);
+                        await _context.SaveChangesAsync();
+
+                        var displayName = string.Join(" ", new[] { user.FirstName, user.LastName }
+                            .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+                        if (string.IsNullOrWhiteSpace(displayName))
+                        {
+                            displayName = username;
+                        }
+
+                        var account = new Account
+                        {
+                            Username = username,
+                            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                            Role = roleEntity.RoleName,
+                            DisplayName = displayName,
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        _context.Account.Add(account);
+                        await _context.SaveChangesAsync();
+
+                        await transaction.CommitAsync();
+                        return RedirectToAction(nameof(Index));
+                    }
+                    catch
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                }
             }
+
             return View(user);
         }
 
@@ -320,7 +386,7 @@ namespace HRMgmt.Controllers
         private static (string FirstName, string LastName) BuildName(string? displayName, string username)
         {
             var source = string.IsNullOrWhiteSpace(displayName) ? username : displayName;
-            var cleaned = Regex.Replace(source ?? string.Empty, @"[^a-zA-Z\s'\-]", " ").Trim();
+            var cleaned = Regex.Replace(source, @"[^a-zA-Z\s'\-]", " ").Trim();
             var parts = cleaned
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .ToList();
@@ -340,7 +406,7 @@ namespace HRMgmt.Controllers
 
         private static string BuildAutoSyncedAddress(string username)
         {
-            return $"AutoSynced:{(username ?? string.Empty).Trim().ToLowerInvariant()}";
+            return $"AutoSynced:{username.Trim().ToLowerInvariant()}";
         }
     }
 }
