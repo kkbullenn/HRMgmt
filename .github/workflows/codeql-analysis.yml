@@ -39,7 +39,7 @@ jobs:
         # queries: security-extended,security-and-quality
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore ./HRMgmt.sln
 
     - name: Build project
       run: dotnet build ./HRMgmt.sln --configuration Release --no-restore
