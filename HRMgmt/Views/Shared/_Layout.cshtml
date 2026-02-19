@@ -92,7 +92,10 @@
                             @if (User.IsInRole("Employee"))
                             {
                                 <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Shift" asp-action="MyShifts">My Shifts</a>
+                                    <a class="nav-link text-dark" asp-controller="Users" asp-action="Profile">Profile</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-controller="Shift" asp-action="EmployeeShift">My Shifts</a>
                                 </li>
                             }
 
@@ -102,7 +105,7 @@
                                     <a class="nav-link text-dark" asp-controller="Users" asp-action="Index">Employees</a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Shift" asp-action="ShiftAssignment">Schedule</a>
+                                    <a class="nav-link text-dark" asp-controller="Shift" asp-action="EmployeeShift">Schedule</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link text-dark" asp-controller="Shift" asp-action="Index">Shifts</a>
