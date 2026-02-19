@@ -2,7 +2,7 @@ name: "CodeQL Security Analysis"
 
 on:
   push:
-    branches: [ main, dev, test-dev, fix/bullen-buildpaths ]
+    branches: [ main, dev, test-dev ]
   pull_request:
     branches: [ main, dev, test-dev, 'feature/**' ]
   schedule:
