@@ -5,17 +5,19 @@ using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using HRMgmt.Models;
 using HRMgmt.ViewModels;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace HRMgmt
 {
+    [Authorize] // For RBAC
     public class ShiftController : Controller
     {
         private readonly OrgDbContext _context;
-        private static readonly string[] DaysOfWeek = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday","Sunday" };
+        private static readonly string[] DaysOfWeek = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
 
         public ShiftController(OrgDbContext context)
         {
@@ -25,12 +27,7 @@ namespace HRMgmt
         // GET: Shift
         public async Task<IActionResult> Index()
         {
-            var role = HttpContext.Session.GetString("UserRole");
-
-            if (string.IsNullOrEmpty(role))
-            {
-                return RedirectToAction("Login", "Account");
-            }
+            var role = User.FindFirstValue(ClaimTypes.Role); // FIXED: No more session, uses cookies
 
             if (string.Equals(role, "Employee", StringComparison.OrdinalIgnoreCase))
             {
@@ -47,10 +44,9 @@ namespace HRMgmt
         }
 
         // GET: Shift/MyShifts
-        // Employee-only view: list shifts for the current logged-in employee.
         public async Task<IActionResult> MyShifts()
         {
-            var role = HttpContext.Session.GetString("UserRole");
+            var role = User.FindFirstValue(ClaimTypes.Role); // FIXED: No more session
             if (!string.Equals(role, "Employee", StringComparison.OrdinalIgnoreCase))
             {
                 return RedirectToAction(nameof(Index));
@@ -123,15 +119,8 @@ namespace HRMgmt
                 var templateRows = new List<EmployeeShiftListItemViewModel>();
                 foreach (var template in templates)
                 {
-                    if (!shiftLookup.TryGetValue(template.ShiftType, out var shift))
-                    {
-                        continue;
-                    }
-
-                    if (!TryParseDayOfWeek(template.DayOfWeek, out var dayOfWeek))
-                    {
-                        continue;
-                    }
+                    if (!shiftLookup.TryGetValue(template.ShiftType, out var shift)) continue;
+                    if (!TryParseDayOfWeek(template.DayOfWeek, out var dayOfWeek)) continue;
 
                     templateRows.Add(new EmployeeShiftListItemViewModel
                     {
@@ -152,7 +141,7 @@ namespace HRMgmt
             return View(shifts);
         }
 
-        // GET: Shift/ShiftAssignment
+        [Authorize(Roles = "Admin,HR")]
         public IActionResult ShiftAssignment()
         {
             var users = GetScheduleUsers();
@@ -170,7 +159,7 @@ namespace HRMgmt
             return View("~/Views/ShiftAssignment/ShiftAssignment.cshtml", model);
         }
 
-        // Backward-compatible route name from old page.
+        [Authorize(Roles = "Admin,HR")]
         public IActionResult AssignGrid()
         {
             return RedirectToAction(nameof(ShiftAssignment));
@@ -178,8 +167,9 @@ namespace HRMgmt
 
         public IActionResult EmployeeShift()
         {
-            var userRole = HttpContext.Session.GetString("UserRole") ?? "";
-            var accountIdStr = HttpContext.Session.GetString("UserId") ?? "";
+            var userRole = User.FindFirstValue(ClaimTypes.Role) ?? ""; // FIXED: No more session
+            var accountIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? ""; // FIXED: No more session
+
             Guid? employeeUserId = null;
             if (userRole == "Employee" && int.TryParse(accountIdStr, out int accountId))
             {
@@ -228,12 +218,9 @@ namespace HRMgmt
 
                 var exists = _context.Users.Any(u =>
                     u.Address == syncAddress &&
-                    u.Role == employeeRoleId);
+                    u.RoleId == employeeRoleId);
 
-                if (exists)
-                {
-                    continue;
-                }
+                if (exists) continue;
 
                 _context.Users.Add(new User
                 {
@@ -241,7 +228,7 @@ namespace HRMgmt
                     FirstName = firstName,
                     LastName = lastName,
                     Address = syncAddress,
-                    Role = employeeRoleId,
+                    RoleId = employeeRoleId,
                     HourlyWage = 0m
                 });
                 hasNewUsers = true;
@@ -261,15 +248,8 @@ namespace HRMgmt
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .ToList();
 
-            if (parts.Count == 0)
-            {
-                return ("Employee", "User");
-            }
-
-            if (parts.Count == 1)
-            {
-                return (parts[0], "User");
-            }
+            if (parts.Count == 0) return ("Employee", "User");
+            if (parts.Count == 1) return (parts[0], "User");
 
             return (parts[0], string.Join(" ", parts.Skip(1)));
         }
@@ -281,11 +261,7 @@ namespace HRMgmt
 
         private static bool TryParseDayOfWeek(string dayName, out DayOfWeek dayOfWeek)
         {
-            if (Enum.TryParse(dayName, true, out dayOfWeek))
-            {
-                return true;
-            }
-
+            if (Enum.TryParse(dayName, true, out dayOfWeek)) return true;
             dayOfWeek = DayOfWeek.Monday;
             return false;
         }
@@ -313,12 +289,9 @@ namespace HRMgmt
                 return Json(new { templateName = "", weekType = 1, weekIndex = 0, grid = new List<string>() });
             }
 
-            var templateQuery = _context.SchedulingTemplates
-                .Where(t => t.TemplateName == name);
+            var templateQuery = _context.SchedulingTemplates.Where(t => t.TemplateName == name);
 
-            var latest = templateQuery
-                .OrderByDescending(t => t.Id)
-                .FirstOrDefault();
+            var latest = templateQuery.OrderByDescending(t => t.Id).FirstOrDefault();
             if (latest == null)
             {
                 return Json(new { templateName = name, weekType = 1, weekIndex = 0, grid = new List<string>() });
@@ -333,7 +306,6 @@ namespace HRMgmt
             }
             else
             {
-                // Default open behavior: always prefer Week 1 first.
                 if (templateQuery.Any(t => t.WeekType == 2 && t.WeekIndex == 0))
                 {
                     resolvedWeekType = 2;
@@ -351,14 +323,8 @@ namespace HRMgmt
                 }
             }
 
-            if (resolvedWeekType == 1)
-            {
-                resolvedWeekIndex = 0;
-            }
-            else
-            {
-                resolvedWeekIndex = resolvedWeekIndex <= 0 ? 0 : 1;
-            }
+            if (resolvedWeekType == 1) resolvedWeekIndex = 0;
+            else resolvedWeekIndex = resolvedWeekIndex <= 0 ? 0 : 1;
 
             var users = GetScheduleUsers();
             var rows = templateQuery
@@ -398,14 +364,11 @@ namespace HRMgmt
                 .Select(r => r.Id)
                 .ToList();
 
-            if (employeeRoleIds.Count == 0)
-            {
-                return new List<User>();
-            }
+            if (employeeRoleIds.Count == 0) return new List<User>();
 
             var users = _context.Users
                 .AsNoTracking()
-                .Where(u => employeeRoleIds.Contains(u.Role))
+                .Where(u => employeeRoleIds.Contains(u.RoleId))
                 .ToList();
 
             var deduped = users
@@ -421,6 +384,7 @@ namespace HRMgmt
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,HR")]
         public IActionResult SaveShiftTemplate([FromForm] EmployeeShiftGridViewModel model, string templateName, int weekType = 1, int weekIndex = 0, string? allWeeksGridJson = null, string? originalTemplateName = null)
         {
             if (string.IsNullOrWhiteSpace(templateName))
@@ -473,10 +437,7 @@ namespace HRMgmt
                         gridsToSave.Add((payloadWeekType, payloadWeekIndex, NormalizeGrid(item.grid)));
                     }
                 }
-                catch
-                {
-                    // Fallback to current posted grid below.
-                }
+                catch { }
             }
 
             if (gridsToSave.Count == 0)
@@ -486,7 +447,6 @@ namespace HRMgmt
                 gridsToSave.Add((fallbackWeekType, fallbackWeekIndex, NormalizeGrid(model.Grid)));
             }
 
-            // Deduplicate by (WeekType, WeekIndex), keep the last submitted grid.
             gridsToSave = gridsToSave
                 .GroupBy(g => new { g.WeekType, g.WeekIndex })
                 .Select(g => g.Last())
@@ -498,7 +458,6 @@ namespace HRMgmt
             if (oldRows.Count > 0)
             {
                 _context.SchedulingTemplates.RemoveRange(oldRows);
-                // Flush deletes first to avoid unique-key collisions when re-inserting same cells.
                 _context.SaveChanges();
             }
 
@@ -528,59 +487,47 @@ namespace HRMgmt
 
             _context.SaveChanges();
             TempData["Success"] = $"{templateName} saved successfully.";
-
             return RedirectToAction(nameof(ShiftAssignment));
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,HR")]
         public JsonResult AutoAssignByTemplate([FromBody] AutoAssignByTemplateDto dto)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.templateName))
-            {
                 return Json(new { success = false, message = "Template name is required." });
-            }
 
-            var templateRows = _context.SchedulingTemplates
-                .Where(t => t.TemplateName == dto.templateName)
-                .ToList();
-            if (templateRows.Count == 0)
-            {
-                return Json(new { success = false, message = "Template not found." });
-            }
+            var templateRows = _context.SchedulingTemplates.Where(t => t.TemplateName == dto.templateName).ToList();
+            if (templateRows.Count == 0) return Json(new { success = false, message = "Template not found." });
 
             var shifts = _context.Shifts.ToList();
-            if (shifts.Count == 0)
-            {
-                return Json(new { success = false, message = "No shifts found in the system." });
-            }
+            if (shifts.Count == 0) return Json(new { success = false, message = "No shifts found in the system." });
 
             var globalStart = dto.startDate?.Date;
             var globalEnd = dto.endDate?.Date;
-            DateOnly? globalStartOnly = globalStart != null ? DateOnly.FromDateTime(globalStart.Value) : (DateOnly?)null;
-            DateOnly? globalEndOnly = globalEnd != null ? DateOnly.FromDateTime(globalEnd.Value) : (DateOnly?)null;
+            DateOnly? globalStartOnly = globalStart != null ? DateOnly.FromDateTime(globalStart.Value) : null;
+            DateOnly? globalEndOnly = globalEnd != null ? DateOnly.FromDateTime(globalEnd.Value) : null;
             var shiftMap = shifts.ToDictionary(s => s.ShiftId, s => s);
             var isBiweekly = dto.weekType == 2;
             var weeklyRows = templateRows.Where(r => r.WeekType == 1).ToList();
             var biweeklyRows = templateRows.Where(r => r.WeekType == 2).ToList();
+
             if (isBiweekly)
             {
-                var hasWeek1 = biweeklyRows.Any(r => r.WeekIndex == 0);
-                var hasWeek2 = biweeklyRows.Any(r => r.WeekIndex == 1);
-                if (!hasWeek1 || !hasWeek2)
-                {
+                if (!biweeklyRows.Any(r => r.WeekIndex == 0) || !biweeklyRows.Any(r => r.WeekIndex == 1))
                     return Json(new { success = false, message = "Biweekly generation requires both Week 1 and Week 2 templates." });
-                }
             }
             else if (weeklyRows.Count == 0)
             {
-                return Json(new { success = false, message = "Weekly generation requires a Weekly template (Week Type = Weekly)." });
+                return Json(new { success = false, message = "Weekly generation requires a Weekly template." });
             }
-            // delete existing assignments that fall into any of the to-be-generated cells, to avoid conflicts and ensure idempotency
+
             var assignmentsToDelete = new List<ShiftAssignment>();
-            foreach (var row in templateRows) {
+            foreach (var row in templateRows)
+            {
                 var shiftIdRaw = (row.ShiftType ?? string.Empty).Trim();
-                if (!Guid.TryParse(shiftIdRaw, out var shiftId)) continue;
-                if (!shiftMap.TryGetValue(shiftId, out var shift)) continue;
+                if (!Guid.TryParse(shiftIdRaw, out var shiftId) || !shiftMap.TryGetValue(shiftId, out var shift)) continue;
+
                 var shiftStart = DateOnly.FromDateTime(shift.StartDate);
                 var shiftEnd = DateOnly.FromDateTime(shift.EndDate);
                 var rangeStart = globalStartOnly ?? shiftStart;
@@ -588,6 +535,7 @@ namespace HRMgmt
                 if (rangeStart < shiftStart) rangeStart = shiftStart;
                 if (rangeEnd > shiftEnd) rangeEnd = shiftEnd;
                 if (rangeEnd < rangeStart) continue;
+
                 var toDel = _context.ShiftAssignments.Where(sa =>
                     sa.UserId == row.UserId &&
                     sa.ShiftId == shift.ShiftId &&
@@ -596,19 +544,23 @@ namespace HRMgmt
                 ).ToList();
                 assignmentsToDelete.AddRange(toDel);
             }
-            if (assignmentsToDelete.Count > 0) {
+
+            if (assignmentsToDelete.Count > 0)
+            {
                 _context.ShiftAssignments.RemoveRange(assignmentsToDelete);
                 _context.SaveChanges();
             }
+
             var added = 0;
             var existingUserDateKeys = new HashSet<string>(
                 _context.ShiftAssignments.Select(sa => $"{sa.UserId}_{sa.ShiftDate:yyyy-MM-dd}").ToList(),
                 StringComparer.OrdinalIgnoreCase);
+
             foreach (var row in templateRows)
             {
                 var shiftIdRaw = (row.ShiftType ?? string.Empty).Trim();
-                if (!Guid.TryParse(shiftIdRaw, out var shiftId)) continue;
-                if (!shiftMap.TryGetValue(shiftId, out var shift)) continue;
+                if (!Guid.TryParse(shiftIdRaw, out var shiftId) || !shiftMap.TryGetValue(shiftId, out var shift)) continue;
+
                 var shiftStart = DateOnly.FromDateTime(shift.StartDate);
                 var shiftEnd = DateOnly.FromDateTime(shift.EndDate);
                 var rangeStart = globalStartOnly ?? shiftStart;
@@ -616,6 +568,7 @@ namespace HRMgmt
                 if (rangeStart < shiftStart) rangeStart = shiftStart;
                 if (rangeEnd > shiftEnd) rangeEnd = shiftEnd;
                 if (rangeEnd < rangeStart) continue;
+
                 for (var date = rangeStart; date <= rangeEnd; date = date.AddDays(1))
                 {
                     var dayName = date.DayOfWeek.ToString();
@@ -630,13 +583,13 @@ namespace HRMgmt
                         match = row.DayOfWeek.Equals(dayName, StringComparison.OrdinalIgnoreCase);
                     }
                     if (!match) continue;
+
                     var userDateKey = $"{row.UserId}_{date:yyyy-MM-dd}";
                     if (existingUserDateKeys.Contains(userDateKey)) continue;
-                    var exists = _context.ShiftAssignments.Any(sa =>
-                        sa.UserId == row.UserId &&
-                        sa.ShiftId == shift.ShiftId &&
-                        sa.ShiftDate == date);
+
+                    var exists = _context.ShiftAssignments.Any(sa => sa.UserId == row.UserId && sa.ShiftId == shift.ShiftId && sa.ShiftDate == date);
                     if (exists) continue;
+
                     _context.ShiftAssignments.Add(new ShiftAssignment
                     {
                         UserId = row.UserId,
@@ -651,11 +604,12 @@ namespace HRMgmt
             _context.SaveChanges();
             DateOnly? minDate = null;
             DateOnly? maxDate = null;
+
             foreach (var row in templateRows)
             {
                 var shiftIdRaw = (row.ShiftType ?? string.Empty).Trim();
-                if (!Guid.TryParse(shiftIdRaw, out var shiftId)) continue;
-                if (!shiftMap.TryGetValue(shiftId, out var shift)) continue;
+                if (!Guid.TryParse(shiftIdRaw, out var shiftId) || !shiftMap.TryGetValue(shiftId, out var shift)) continue;
+
                 var shiftStart = DateOnly.FromDateTime(shift.StartDate);
                 var shiftEnd = DateOnly.FromDateTime(shift.EndDate);
                 var rangeStart = globalStartOnly ?? shiftStart;
@@ -663,9 +617,11 @@ namespace HRMgmt
                 if (rangeStart < shiftStart) rangeStart = shiftStart;
                 if (rangeEnd > shiftEnd) rangeEnd = shiftEnd;
                 if (rangeEnd < rangeStart) continue;
+
                 if (minDate == null || rangeStart < minDate) minDate = rangeStart;
                 if (maxDate == null || rangeEnd > maxDate) maxDate = rangeEnd;
             }
+
             _context.TemplateGenerationLogs.Add(new TemplateGenerationLog
             {
                 TemplateName = dto.templateName.Trim(),
@@ -676,30 +632,19 @@ namespace HRMgmt
                 GeneratedCount = added
             });
             _context.SaveChanges();
-            return Json(new
-            {
-                success = true,
-                count = added,
-                message = $"Template applied using range {(minDate?.ToString("yyyy-MM-dd") ?? "-")} to {(maxDate?.ToString("yyyy-MM-dd") ?? "-")}."
-            });
+
+            return Json(new { success = true, count = added, message = $"Template applied using range {(minDate?.ToString("yyyy-MM-dd") ?? "-")} to {(maxDate?.ToString("yyyy-MM-dd") ?? "-")}." });
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,HR")]
         public JsonResult DeleteTemplate([FromBody] DeleteTemplateDto dto)
         {
             var templateName = dto?.templateName?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(templateName))
-            {
-                return Json(new { success = false, message = "Template name is required." });
-            }
+            if (string.IsNullOrWhiteSpace(templateName)) return Json(new { success = false, message = "Template name is required." });
 
-            var rows = _context.SchedulingTemplates
-                .Where(t => t.TemplateName == templateName)
-                .ToList();
-            if (rows.Count == 0)
-            {
-                return Json(new { success = false, message = "Template is not found." });
-            }
+            var rows = _context.SchedulingTemplates.Where(t => t.TemplateName == templateName).ToList();
+            if (rows.Count == 0) return Json(new { success = false, message = "Template is not found." });
 
             _context.SchedulingTemplates.RemoveRange(rows);
             _context.SaveChanges();
@@ -709,22 +654,14 @@ namespace HRMgmt
         // GET: Shift/Details/5
         public async Task<IActionResult> Details(Guid? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var shift = await _context.Shifts
-                .FirstOrDefaultAsync(m => m.ShiftId == id);
-            if (shift == null)
-            {
-                return NotFound();
-            }
-
+            if (id == null) return NotFound();
+            var shift = await _context.Shifts.FirstOrDefaultAsync(m => m.ShiftId == id);
+            if (shift == null) return NotFound();
             return View(shift);
         }
 
         // GET: Shift/Create
+        [Authorize(Roles = "Admin,HR")]
         public IActionResult Create()
         {
             var model = new Shift
@@ -739,7 +676,6 @@ namespace HRMgmt
 
         // ================= EMPLOYEE SHIFT APIs =================
 
-        // Get all employees (for frontend dropdown)
         [HttpGet]
         public JsonResult GetEmployees()
         {
@@ -751,7 +687,6 @@ namespace HRMgmt
             return Json(users);
         }
 
-        // Get shifts for a specific employee (for calendar events)
         [HttpGet]
         public JsonResult GetEmployeeShifts(Guid employeeId)
         {
@@ -768,7 +703,6 @@ namespace HRMgmt
             return Json(assignments);
         }
 
-        // FullCalendar: get all shifts
         [HttpGet]
         public JsonResult GetShifts()
         {
@@ -783,8 +717,8 @@ namespace HRMgmt
             return Json(shifts);
         }
 
-        // Assign a shift to an employee
         [HttpPost]
+        [Authorize(Roles = "Admin,HR")]
         public JsonResult AssignShift([FromBody] AssignShiftDto dto)
         {
             try
@@ -793,10 +727,7 @@ namespace HRMgmt
                     sa.UserId == dto.UserId &&
                     sa.ShiftDate == DateOnly.FromDateTime(dto.Date));
 
-                if (exists)
-                {
-                    return Json(new { success = false, message = "This user already has a shift on that date." });
-                }
+                if (exists) return Json(new { success = false, message = "This user already has a shift on that date." });
 
                 var assignment = new ShiftAssignment
                 {
@@ -813,21 +744,7 @@ namespace HRMgmt
                 }
                 catch (Exception dbEx)
                 {
-                    var values = new Dictionary<string, object>
-                    {
-                        {"dto.UserId", dto.UserId},
-                        {"dto.ShiftId", dto.ShiftId},
-                        {"dto.Date", dto.Date},
-                        {"assignment.ShiftDate", assignment.ShiftDate},
-                        {"assignment.UserId", assignment.UserId},
-                        {"assignment.ShiftId", assignment.ShiftId}
-                    };
-                    return Json(new {
-                        success = false,
-                        message = "DB error: " + dbEx.Message,
-                        inner = dbEx.InnerException?.Message,
-                        values
-                    });
+                    return Json(new { success = false, message = "DB error: " + dbEx.Message });
                 }
 
                 return Json(new { success = true });
@@ -845,8 +762,8 @@ namespace HRMgmt
             public DateTime Date { get; set; }
         }
 
-        // Delete shift assignment
         [HttpPost]
+        [Authorize(Roles = "Admin,HR")]
         public JsonResult DeleteEmployeeShift([FromBody] DeleteEmployeeShiftDto dto)
         {
             var assignment = _context.ShiftAssignments
@@ -855,8 +772,7 @@ namespace HRMgmt
                     sa.ShiftId == dto.ShiftId &&
                     sa.ShiftDate == DateOnly.FromDateTime(dto.Date));
 
-            if (assignment == null)
-                return Json(new { success = false, message = "Shift assignment not found." });
+            if (assignment == null) return Json(new { success = false, message = "Shift assignment not found." });
 
             _context.ShiftAssignments.Remove(assignment);
             _context.SaveChanges();
@@ -871,18 +787,12 @@ namespace HRMgmt
             public DateTime Date { get; set; }
         }
 
-        // POST: Shift/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,HR")]
         public async Task<IActionResult> Create([Bind("ShiftId,Name,RequiredCount,StartTime,EndTime,StartDate,EndDate,RecurrenceType,RecurrenceDays")] Shift shift)
         {
-            // UI currently hides recurrence inputs; keep safe defaults for validation/persistence.
-            if (!Enum.IsDefined(typeof(RecurrenceType), shift.RecurrenceType))
-            {
-                shift.RecurrenceType = RecurrenceType.Daily;
-            }
+            if (!Enum.IsDefined(typeof(RecurrenceType), shift.RecurrenceType)) shift.RecurrenceType = RecurrenceType.Daily;
             shift.RecurrenceDays ??= string.Empty;
             ModelState.Remove(nameof(Shift.RecurrenceType));
             ModelState.Remove(nameof(Shift.RecurrenceDays));
@@ -897,38 +807,23 @@ namespace HRMgmt
             return View(shift);
         }
 
-        // GET: Shift/Edit/5
+        [Authorize(Roles = "Admin,HR")]
         public async Task<IActionResult> Edit(Guid? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
+            if (id == null) return NotFound();
             var shift = await _context.Shifts.FindAsync(id);
-            if (shift == null)
-            {
-                return NotFound();
-            }
+            if (shift == null) return NotFound();
             return View(shift);
         }
 
-        // POST: Shift/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,HR")]
         public async Task<IActionResult> Edit(Guid id, [Bind("ShiftId,Name,RequiredCount,StartTime,EndTime,StartDate,EndDate,RecurrenceType,RecurrenceDays")] Shift shift)
         {
-            if (id != shift.ShiftId)
-            {
-                return NotFound();
-            }
+            if (id != shift.ShiftId) return NotFound();
 
-            if (!Enum.IsDefined(typeof(RecurrenceType), shift.RecurrenceType))
-            {
-                shift.RecurrenceType = RecurrenceType.Daily;
-            }
+            if (!Enum.IsDefined(typeof(RecurrenceType), shift.RecurrenceType)) shift.RecurrenceType = RecurrenceType.Daily;
             shift.RecurrenceDays ??= string.Empty;
             ModelState.Remove(nameof(Shift.RecurrenceType));
             ModelState.Remove(nameof(Shift.RecurrenceDays));
@@ -942,41 +837,26 @@ namespace HRMgmt
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!ShiftExists(shift.ShiftId))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
+                    if (!ShiftExists(shift.ShiftId)) return NotFound();
+                    else throw;
                 }
                 return RedirectToAction(nameof(Index));
             }
             return View(shift);
         }
 
-        // GET: Shift/Delete/5
+        [Authorize(Roles = "Admin,HR")]
         public async Task<IActionResult> Delete(Guid? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var shift = await _context.Shifts
-                .FirstOrDefaultAsync(m => m.ShiftId == id);
-            if (shift == null)
-            {
-                return NotFound();
-            }
-
+            if (id == null) return NotFound();
+            var shift = await _context.Shifts.FirstOrDefaultAsync(m => m.ShiftId == id);
+            if (shift == null) return NotFound();
             return View(shift);
         }
 
-        // POST: Shift/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,HR")]
         public async Task<IActionResult> DeleteConfirmed(Guid id)
         {
             var shift = await _context.Shifts.FindAsync(id);
@@ -984,7 +864,6 @@ namespace HRMgmt
             {
                 _context.Shifts.Remove(shift);
             }
-
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
@@ -996,46 +875,28 @@ namespace HRMgmt
 
         private async Task<Guid?> ResolveCurrentEmployeeUserIdAsync()
         {
-            var sessionUserId = HttpContext.Session.GetString("UserId");
+            var sessionUserId = User.FindFirstValue(ClaimTypes.NameIdentifier); // FIXED
 
             if (Guid.TryParse(sessionUserId, out var guidUserId))
             {
-                var existsByGuid = await _context.Users
-                    .AsNoTracking()
-                    .AnyAsync(u => u.UserId == guidUserId);
-
-                if (existsByGuid)
-                {
-                    return guidUserId;
-                }
+                var existsByGuid = await _context.Users.AsNoTracking().AnyAsync(u => u.UserId == guidUserId);
+                if (existsByGuid) return guidUserId;
             }
 
-            var sessionDisplayName = (HttpContext.Session.GetString("UserName") ?? string.Empty).Trim();
+            var sessionDisplayName = (User.FindFirstValue(ClaimTypes.Name) ?? string.Empty).Trim(); // FIXED
 
-            static string Normalize(string? value) =>
-                (value ?? string.Empty).Trim().ToLowerInvariant();
+            static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant();
 
             string? username = null;
 
             if (int.TryParse(sessionUserId, out var accountId))
             {
-                username = await _context.Account
-                    .AsNoTracking()
-                    .Where(a => a.Id == accountId)
-                    .Select(a => a.Username)
-                    .FirstOrDefaultAsync();
+                username = await _context.Account.AsNoTracking().Where(a => a.Id == accountId).Select(a => a.Username).FirstOrDefaultAsync();
 
                 var autosyncedAddress = BuildAutoSyncedAddress(username ?? string.Empty);
-                var byAutoSyncedAddress = await _context.Users
-                    .AsNoTracking()
-                    .Where(u => u.Address == autosyncedAddress)
-                    .Select(u => (Guid?)u.UserId)
-                    .FirstOrDefaultAsync();
+                var byAutoSyncedAddress = await _context.Users.AsNoTracking().Where(u => u.Address == autosyncedAddress).Select(u => (Guid?)u.UserId).FirstOrDefaultAsync();
 
-                if (byAutoSyncedAddress != null)
-                {
-                    return byAutoSyncedAddress;
-                }
+                if (byAutoSyncedAddress != null) return byAutoSyncedAddress;
             }
 
             if (!string.IsNullOrWhiteSpace(username))
@@ -1043,18 +904,11 @@ namespace HRMgmt
                 var normalizedUsername = Normalize(username);
                 var byUsername = await _context.Users
                     .AsNoTracking()
-                    .Where(u =>
-                        u.FirstName.ToLower() == normalizedUsername ||
-                        (u.FirstName + u.LastName).ToLower() == normalizedUsername ||
-                        (u.FirstName + "." + u.LastName).ToLower() == normalizedUsername ||
-                        (u.FirstName + "_" + u.LastName).ToLower() == normalizedUsername)
+                    .Where(u => u.FirstName.ToLower() == normalizedUsername || (u.FirstName + u.LastName).ToLower() == normalizedUsername || (u.FirstName + "." + u.LastName).ToLower() == normalizedUsername || (u.FirstName + "_" + u.LastName).ToLower() == normalizedUsername)
                     .Select(u => (Guid?)u.UserId)
                     .FirstOrDefaultAsync();
 
-                if (byUsername != null)
-                {
-                    return byUsername;
-                }
+                if (byUsername != null) return byUsername;
             }
 
             var normalizedDisplayName = Normalize(sessionDisplayName);
@@ -1066,10 +920,7 @@ namespace HRMgmt
                     .Select(u => (Guid?)u.UserId)
                     .FirstOrDefaultAsync();
 
-                if (byDisplayName != null)
-                {
-                    return byDisplayName;
-                }
+                if (byDisplayName != null) return byDisplayName;
             }
 
             return null;
