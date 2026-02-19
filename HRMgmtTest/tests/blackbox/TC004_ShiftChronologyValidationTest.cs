@@ -85,10 +85,6 @@ public class TC004_ShiftChronologyValidationTest
 
         _shiftPage.ClickCreateExpectFailure();
         Assert.That(_driver.Url.ToLower(), Contains.Substring("/shift/create"), "Should stay on Create page for Identical Start/End Time.");
-
-        // If we got here and assertions passed (or failed as expected), we are good.
-        // User said: "System should prevent submission; if saved, log as defect."
-        // Failing the assertions above effectively logs it as a defect in test results.
     }
 
     [TearDown]
