@@ -245,6 +245,37 @@ public class ShiftAssignmentPage : BasePage
         return select.SelectedOption?.GetAttribute("value") ?? string.Empty;
     }
 
+    public void SelectShiftByText(int rowIndex, int columnIndex, string partialText)
+    {
+        var select = new SelectElement(GetShiftCell(rowIndex, columnIndex));
+        foreach (var option in select.Options)
+        {
+            if (option.Text.Contains(partialText))
+            {
+                select.SelectByText(option.Text);
+                return;
+            }
+        }
+        var optionsText = select.Options.Select(o => o.Text).ToList();
+        var available = string.Join(", ", optionsText);
+        throw new NoSuchElementException($"Cannot find shift with text containing '{partialText}'. Available options: [{available}]");
+    }
+
+    public string GetFirstAvailableShiftName()
+    {
+        // Try row 0, col 0
+        var select = new SelectElement(GetShiftCell(0, 0));
+        // Skip placeholders if any (usually empty value or "Select")
+        var option = select.Options.FirstOrDefault(o => !string.IsNullOrWhiteSpace(o.Text) && !string.IsNullOrWhiteSpace(o.GetAttribute("value")));
+        
+        if (option == null) 
+        {
+            var optionsText = string.Join(", ", select.Options.Select(o => o.Text));
+             throw new NoSuchElementException($"No available shifts found in the dropdown to test with. Options: [{optionsText}]");
+        }
+        return option.Text;
+    }
+
     public void ApplyBatchShiftForColumn(int columnIndex, string shiftId)
     {
         var select = new SelectElement(GetBatchSelect(columnIndex));

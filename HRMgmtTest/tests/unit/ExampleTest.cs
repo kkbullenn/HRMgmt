@@ -3,7 +3,7 @@ using OpenQA.Selenium.Chrome;
 
 namespace HRMgmtTest;
 
-public class Tests
+public class Tests1
 {
     private BasePage basePage;
 
