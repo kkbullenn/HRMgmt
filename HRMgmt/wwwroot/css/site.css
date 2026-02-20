@@ -46,6 +46,28 @@ body {
 .app-main {
   min-height: 80vh;
 }
+/* The Logout Button*/
+.user-pill-link {
+    background: #f8f9fa;
+    color: var(--text-muted) !important;
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-decoration: none !important;
+    transition: all 0.2s ease-in-out;
+    /* Neumorphic Inset Depth */
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* Hover State - Soft Warning Red */
+.user-pill-link:hover {
+    background: #fee2e2; /* Very soft red tint */
+    color: #dc2626 !important; /* Muted danger red text */
+    border-color: #fecaca;
+    box-shadow: 0 4px 10px rgba(220, 38, 38, 0.15); /* Subtle outer glow */
+    transform: translateY(-1px);
+}
 
 /* Back Arrow Circle - Indented Style */
 .back-pill {
