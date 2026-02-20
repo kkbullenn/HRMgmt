@@ -3,15 +3,17 @@ using HRMgmt.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies; // ADDED: Required for Cookie Auth
 using HRMgmt.SeedData;
+using Microsoft.Data.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 var useLocalDb = builder.Configuration.GetValue<bool>("UseLocalDb");
 var testModeValue = Environment.GetEnvironmentVariable("TEST_MODE");
-if (!string.IsNullOrWhiteSpace(testModeValue) && bool.TryParse(testModeValue, out var testModeEnabled))
+var isTestMode = !string.IsNullOrWhiteSpace(testModeValue) && bool.TryParse(testModeValue, out var testModeEnabled) && testModeEnabled;
+if (isTestMode)
 {
-    useLocalDb = testModeEnabled;
+    useLocalDb = true;
 }
 var hostedConnection = builder.Configuration.GetConnectionString("HostedConnection");
 var localConnection = builder.Configuration.GetConnectionString("LocalConnection");
@@ -57,6 +59,11 @@ builder.Services.AddSession(options =>
 
 var app = builder.Build();
 
+if (isTestMode)
+{
+    RegisterLocalDbCleanup(app, localConnection);
+}
+
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<OrgDbContext>();
@@ -92,3 +99,33 @@ app.MapControllerRoute(
     .WithStaticAssets();
 
 app.Run();
+
+static void RegisterLocalDbCleanup(WebApplication app, string? localConnection)
+{
+    if (string.IsNullOrWhiteSpace(localConnection))
+    {
+        return;
+    }
+
+    var builder = new SqliteConnectionStringBuilder(localConnection);
+    var dataSource = builder.DataSource;
+    if (string.IsNullOrWhiteSpace(dataSource))
+    {
+        return;
+    }
+
+    app.Lifetime.ApplicationStopping.Register(() =>
+    {
+        try
+        {
+            if (File.Exists(dataSource))
+            {
+                File.Delete(dataSource);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup; ignore errors on shutdown.
+        }
+    });
+}
