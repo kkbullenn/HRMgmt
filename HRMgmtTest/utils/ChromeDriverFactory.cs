@@ -12,6 +12,20 @@ public static class ChromeDriverFactory
     public static IWebDriver CreateChromeDriver()
     {
         var options = new ChromeOptions();
+        var isCi = string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase);
+        var forceHeadless = string.Equals(Environment.GetEnvironmentVariable("HRMGT_HEADLESS"), "1", StringComparison.Ordinal);
+
+        if (isCi || forceHeadless)
+        {
+            options.AddArgument("--headless=new");
+        }
+        if (isCi)
+        {
+            options.AddArgument("--no-sandbox");
+            options.AddArgument("--disable-dev-shm-usage");
+        }
+        options.AddArgument("--window-size=1600,1000");
         
         // Disable password manager, leak detection, and credential features at the feature flag level.
         // PasswordLeakDetection is the feature that checks passwords against known breaches
