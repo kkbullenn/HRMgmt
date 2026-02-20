@@ -1,18 +1,13 @@
 ﻿using HRMgmtTest.pages;
-using OpenQA.Selenium.Chrome;
+using HRMgmtTest.utils;
 
 namespace HRMgmtTest;
 
 public class Tests
 {
-    private BasePage basePage;
-
     [SetUp]
     public void Setup()
     {
-        // Initialize WebDriver and page object file here (doesn't have to be BasePage)
-        // For example:
-        basePage = new BasePage(new ChromeDriver());
     }
 
     [Test]
@@ -25,6 +20,5 @@ public class Tests
     public void TearDown()
     {
         // Clean up WebDriver here
-        basePage.CloseBrowser();
     }
 }

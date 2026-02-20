@@ -21,7 +21,7 @@ namespace HRMgmt.Controllers
         {
             _context = context;
         }
-
+       
         // GET: Users
         public async Task<IActionResult> Index()
         {
@@ -41,9 +41,12 @@ namespace HRMgmt.Controllers
 
             if (string.Equals(account.Role, "Employee", StringComparison.OrdinalIgnoreCase))
             {
-                var syncAddress = BuildAutoSyncedAddress(account.Username);
-                var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
-
+                // var syncAddress = BuildAutoSyncedAddress(account.Username);
+                // var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
+                var (fName, lName) = BuildName(account.DisplayName, account.Username);
+                var currentUser = await _context.Users.FirstOrDefaultAsync(u => 
+                    u.FirstName == fName && u.LastName == lName);
+                
                 if (currentUser == null)
                 {
                     return NotFound();
@@ -116,7 +119,9 @@ namespace HRMgmt.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         // FIXED: Added string username and string password to parameters
-        public async Task<IActionResult> Create([Bind("UserId,FirstName,LastName,DateOfBirth,Address,RoleId,Photo,HourlyWage")] User user, string username, string password, IFormFile? photoFile)
+        public async Task<IActionResult> Create(
+            [Bind("UserId,FirstName,LastName,DateOfBirth,Address,RoleId,Photo,HourlyWage")] User user, string username,
+            string password, IFormFile? photoFile)
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             {
@@ -124,10 +129,8 @@ namespace HRMgmt.Controllers
             }
 
 
-
             if (ModelState.IsValid)
             {
-
                 var roleEntity = await _context.Roles.FindAsync(user.RoleId);
                 if (roleEntity == null)
                 {
@@ -151,23 +154,11 @@ namespace HRMgmt.Controllers
                                 user.Photo = memoryStream.ToArray();
                             }
                         }
-
-                        user.UserId = Guid.NewGuid();
-                        if (string.Equals(roleEntity.RoleName, "Employee", StringComparison.OrdinalIgnoreCase))
-                        {
-                            user.Address = BuildAutoSyncedAddress(username);
-                        }
-                        _context.Add(user);
-                        await _context.SaveChangesAsync();
-
+                        
                         var displayName = string.Join(" ", new[] { user.FirstName, user.LastName }
                             .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
 
-                        if (string.IsNullOrWhiteSpace(displayName))
-                        {
-                            displayName = username;
-                        }
-
+                        // Moved above user creation to stop dupe creation
                         var account = new Account
                         {
                             Username = username,
@@ -176,8 +167,23 @@ namespace HRMgmt.Controllers
                             DisplayName = displayName,
                             CreatedAt = DateTime.UtcNow
                         };
-
                         _context.Account.Add(account);
+                        await _context.SaveChangesAsync();
+
+                        user.UserId = Guid.NewGuid();
+                        // Commented out to stop AutoSynced address issue
+                        // if (string.Equals(roleEntity.RoleName, "Employee", StringComparison.OrdinalIgnoreCase))
+                        // {
+                        //     user.Address = BuildAutoSyncedAddress(username);
+                        // }
+
+                        _context.Add(user);
+
+                        if (string.IsNullOrWhiteSpace(displayName))
+                        {
+                            displayName = username;
+                        }
+
                         await _context.SaveChangesAsync();
 
                         await transaction.CommitAsync();
@@ -225,8 +231,11 @@ namespace HRMgmt.Controllers
 
             if (string.Equals(account.Role, "Employee", StringComparison.OrdinalIgnoreCase))
             {
-                var syncAddress = BuildAutoSyncedAddress(account.Username);
-                var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
+                // var syncAddress = BuildAutoSyncedAddress(account.Username);
+                // var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
+                var (fName, lName) = BuildName(account.DisplayName, account.Username);
+                var currentUser = await _context.Users.FirstOrDefaultAsync(u => 
+                    u.FirstName == fName && u.LastName == lName);
 
                 if (currentUser == null || currentUser.UserId != id)
                 {
@@ -252,6 +261,7 @@ namespace HRMgmt.Controllers
             {
                 return NotFound();
             }
+
             return View("AdminEdit", user);
         }
 
@@ -259,7 +269,8 @@ namespace HRMgmt.Controllers
         // POST: Users/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(Guid id, [Bind("UserId,FirstName,LastName,DateOfBirth,Address,Photo")] User user, IFormFile? photoFile)
+        public async Task<IActionResult> Edit(Guid id,
+            [Bind("UserId,FirstName,LastName,DateOfBirth,Address,Photo")] User user, IFormFile? photoFile)
         {
             if (id != user.UserId)
             {
@@ -277,8 +288,11 @@ namespace HRMgmt.Controllers
 
             if (string.Equals(account?.Role, "Employee", StringComparison.OrdinalIgnoreCase))
             {
-                var syncAddress = BuildAutoSyncedAddress(account.Username);
-                var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
+                // var syncAddress = BuildAutoSyncedAddress(account.Username);
+                // var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
+                var (fName, lName) = BuildName(account.DisplayName, account.Username);
+                var currentUser = await _context.Users.FirstOrDefaultAsync(u => 
+                    u.FirstName == fName && u.LastName == lName);
 
                 if (currentUser == null || currentUser.UserId != id)
                 {
@@ -300,6 +314,7 @@ namespace HRMgmt.Controllers
                     {
                         return NotFound();
                     }
+
                     existingUser.FirstName = user.FirstName;
                     existingUser.LastName = user.LastName;
                     existingUser.DateOfBirth = user.DateOfBirth;
@@ -327,8 +342,10 @@ namespace HRMgmt.Controllers
                         throw;
                     }
                 }
+
                 return RedirectToAction(nameof(Index));
             }
+
             return View(user);
         }
 
@@ -393,10 +410,11 @@ namespace HRMgmt.Controllers
             foreach (var account in employeeAccounts)
             {
                 var (firstName, lastName) = BuildName(account.DisplayName, account.Username);
-                var syncAddress = BuildAutoSyncedAddress(account.Username);
+                //var syncAddress = BuildAutoSyncedAddress(account.Username); causing issue showing address
 
                 var exists = await _context.Users.AnyAsync(u =>
-                    u.Address == syncAddress &&
+                    u.FirstName == firstName &&
+                    u.LastName == lastName &&
                     u.RoleId == employeeRoleId);
 
                 if (exists)
@@ -409,7 +427,7 @@ namespace HRMgmt.Controllers
                     UserId = Guid.NewGuid(),
                     FirstName = firstName,
                     LastName = lastName,
-                    Address = syncAddress,
+                    Address = "No address",
                     RoleId = employeeRoleId,
                     HourlyWage = 0m
                 });
@@ -421,6 +439,7 @@ namespace HRMgmt.Controllers
                 await _context.SaveChangesAsync();
             }
         }
+
 
         // FIXED: Added null coalescing '?? string.Empty' to avoid null reference exceptions
         private static (string FirstName, string LastName) BuildName(string? displayName, string username)
