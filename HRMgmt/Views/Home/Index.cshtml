@@ -2,13 +2,6 @@
     ViewData["Title"] = "Home Page";
 }
 
-<div class="text-center">
-    @if (User.Identity?.IsAuthenticated == true)
-    {
-        <h1 class="display-4">Welcome, @User.Identity.Name!</h1>
-    }
-</div>
-
 @{
     ViewData["Title"] = "Home";
     var userName = Context.Session.GetString("UserName");
