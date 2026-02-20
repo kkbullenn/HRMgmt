@@ -410,3 +410,11 @@ FodyWeavers.xsd
 # Application specific
 appsettings.Development.json
 appsettings.Local.json
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+hrmgmt.db
