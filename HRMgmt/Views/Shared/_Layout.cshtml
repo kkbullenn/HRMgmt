@@ -36,6 +36,9 @@
                     {
                         <a class="nav-pill" asp-controller="Users" asp-action="Profile">Profile</a>
                         <a class="nav-pill" asp-controller="Shift" asp-action="EmployeeShift">My Shifts</a>
+                        @* Fix: Restored Employee My Payroll link *@
+                        <a class="nav-pill" asp-controller="Payroll" asp-action="MyPayroll">My Payroll</a>
+                        <a class="nav-pill" asp-controller="Payroll" asp-action="MyPayrollCalculate">My Payroll Calc</a>
                     }
 
                     @if (User.IsInRole("Admin") || User.IsInRole("HR"))
