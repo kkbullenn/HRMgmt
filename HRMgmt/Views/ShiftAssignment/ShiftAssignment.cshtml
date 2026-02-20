@@ -24,21 +24,21 @@
 
 <link rel="stylesheet" href="/css/assigngrid-menu.css" />
 <div class="shift-assignment-page">
-    <div class="assigngrid-layout">
-        <div class="assigngrid-menu">
-            <h4>Template List</h4>
-            <ul class="assigngrid-menu-list" id="templateMenu">
-                @foreach (var name in templates)
-                {
-                    <li title="@name" onclick="loadTemplate('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(name))')">@name</li>
-                }
-            </ul>
-            <div style="padding: 16px 24px 0 24px;">
-                <a href="#" onclick="createNewTemplate();return false;" style="color:#007bff; font-weight:bold;">+ Create new template</a>
-            </div>
+<div class="assigngrid-layout">
+    <div class="assigngrid-menu">
+        <h4>Template List</h4>
+        <ul class="assigngrid-menu-list" id="templateMenu">
+            @foreach (var name in templates)
+            {
+                <li title="@name" onclick="loadTemplate('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(name))')">@name</li>
+            }
+        </ul>
+        <div style="padding: 16px 24px 0 24px;">
+            <a href="#" onclick="createNewTemplate();return false;" style="color:#007bff; font-weight:bold;">+ Create new template</a>
         </div>
-        <div class="assigngrid-main">
-    <style>
+    </div>
+    <div class="assigngrid-main">
+        <style>
         .floating-feedback {
             position: fixed;
             top: 72px;
@@ -51,23 +51,23 @@
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
         }
     </style>
-    <h1 id="templatePageModeTitle">Create Scheduling Templates</h1>
-    @if (TempData["Error"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show floating-feedback" role="alert">
-            @TempData["Error"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
-    @if (TempData["Success"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show floating-feedback" role="alert">
-            @TempData["Success"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
-    <form asp-action="SaveShiftTemplate" method="post" id="mainForm">
-        <style>
+        <h1 id="templatePageModeTitle">Create Scheduling Templates</h1>
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show floating-feedback" role="alert">
+                @TempData["Error"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show floating-feedback" role="alert">
+                @TempData["Success"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        <form asp-action="SaveShiftTemplate" method="post" id="mainForm">
+            <style>
             .batch-tools {
                 display: flex;
                 gap: 6px;
@@ -95,95 +95,96 @@
 
         </style>
 
-        <div class="mb-2">
-            <label>Template Name <input type="text" name="templateName" id="templateNameInput" required class="form-control d-inline-block" style="width:200px;display:inline-block;" /></label>
-            <input type="hidden" name="originalTemplateName" id="originalTemplateNameInput" value="" />
-            <label class="ms-3">Week Type
-                <select id="weekTypeInput" class="form-select d-inline-block" style="width:130px;display:inline-block;">
-                    <option value="1">Weekly</option>
-                    <option value="2">Biweekly</option>
-                </select>
-                <input type="hidden" name="weekType" id="weekTypeHidden" value="1" />
-            </label>
-            <label class="ms-3">Week Index
-                <select id="weekIndexInput" class="form-select d-inline-block" style="width:130px;display:inline-block;">
-                    <option value="0">Week 1</option>
-                    <option value="1">Week 2</option>
-                </select>
-                <input type="hidden" name="weekIndex" id="weekIndexHidden" value="0" />
-            </label>
-            <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="clearCurrentWeekGrid()">Clear</button>
-            <input type="hidden" name="allWeeksGridJson" id="allWeeksGridJson" value="" />
-        </div>
+            <div class="mb-2">
+                <label>Template Name <input type="text" name="templateName" id="templateNameInput" required class="form-control d-inline-block" style="width:200px;display:inline-block;" /></label>
+                <input type="hidden" name="originalTemplateName" id="originalTemplateNameInput" value="" />
+                <label class="ms-3">Week Type
+                    <select id="weekTypeInput" class="form-select d-inline-block" style="width:130px;display:inline-block;">
+                        <option value="1">Weekly</option>
+                        <option value="2">Biweekly</option>
+                    </select>
+                    <input type="hidden" name="weekType" id="weekTypeHidden" value="1" />
+                </label>
+                <label class="ms-3">Week Index
+                    <select id="weekIndexInput" class="form-select d-inline-block" style="width:130px;display:inline-block;">
+                        <option value="0">Week 1</option>
+                        <option value="1">Week 2</option>
+                    </select>
+                    <input type="hidden" name="weekIndex" id="weekIndexHidden" value="0" />
+                </label>
+                <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="clearCurrentWeekGrid()">Clear</button>
+                <input type="hidden" name="allWeeksGridJson" id="allWeeksGridJson" value="" />
+            </div>
 
-        <div class="shift-table-container">
-            <table class="table table-bordered" id="shiftTable" width="100%">
-            <thead>
-                <tr>
-                    <th colspan="9" class="text-center bg-light" id="gridWeekHeader" style="font-size:1.8rem;font-weight:700;letter-spacing:0.2px;">Week 1</th>
-                </tr>
-                <tr>
-                    <th style="width:40px;"></th>
-                    <th>Employee</th>
-                    @for (int d = 0; d < daysOfWeek.Length; d++)
-                    {
-                        <th>
-                            <div>@daysOfWeek[d]</div>
-                            <div class="batch-tools">
-                                <select id="batchShift-@d" class="form-select form-select-sm batch-select">
-                                    <option value="">Clear</option>
-                                    @foreach (var s in shiftTypes)
-                                    {
-                                        <option value="@s.Key">@s.Name</option>
-                                    }
-                                </select>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyBatchFromHeader(@d)">Apply</button>
-                            </div>
-                        </th>
-                    }
-                </tr>
-            </thead>
-            <tbody>
-                @for (int i = 0; i < users.Count; i++)
-                {
-                    <tr data-row="@i">
-                        <input type="hidden" name="Users[@i].UserId" value="@users[i].UserId" class="user-id-input" />
-                        <td class="checkbox-cell"><input type="checkbox" class="row-select" data-row="@i" /></td>
-                        <td class="emp-name" style="cursor:pointer;">@($"{users[i].FirstName} {users[i].LastName}")</td>
-                        @for (int j = 0; j < daysOfWeek.Length; j++)
+            <div class="shift-table-container">
+                <table class="table table-bordered" id="shiftTable" width="100%">
+                    <thead>
+                    <tr>
+                        <th colspan="9" class="text-center bg-light" id="gridWeekHeader" style="font-size:1.8rem;font-weight:700;letter-spacing:0.2px;">Week 1</th>
+                    </tr>
+                    <tr>
+                        <th style="width:40px;"></th>
+                        <th>Employee</th>
+                        @for (int d = 0; d < daysOfWeek.Length; d++)
                         {
-                            var idx = i * daysOfWeek.Length + j;
-                            var cellValue = grid[idx];
-                            <td>
-                                <input type="hidden" name="Grid[@idx]" value="@cellValue" />
-                                <select class="shift-dropdown shift-cell" data-row="@i" data-col="@j" style="width:100%;height:32px;padding:0 8px;border-radius:4px;font-weight:bold;text-align:center;background:#dee2e6;color:#888;">
-                                    <option value="" selected="@string.IsNullOrEmpty(cellValue)"> </option>
-                                    @foreach (var s in shiftTypes)
-                                    {
-                                        <option value="@s.Key" selected="@(cellValue == s.Key)">@s.Label</option>
-                                    }
-                                </select>
-                            </td>
+                            <th>
+                                <div>@daysOfWeek[d]</div>
+                                <div class="batch-tools">
+                                    <select id="batchShift-@d" class="form-select form-select-sm batch-select">
+                                        <option value="">Clear</option>
+                                        @foreach (var s in shiftTypes)
+                                        {
+                                            <option value="@s.Key">@s.Name</option>
+                                        }
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyBatchFromHeader(@d)">Apply</button>
+                                </div>
+                            </th>
                         }
                     </tr>
-                }
-            </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                    @for (int i = 0; i < users.Count; i++)
+                    {
+                        <tr data-row="@i">
+                            <input type="hidden" name="Users[@i].UserId" value="@users[i].UserId" class="user-id-input" />
+                            <td class="checkbox-cell"><input type="checkbox" class="row-select" data-row="@i" /></td>
+                            <td class="emp-name" style="cursor:pointer;">@($"{users[i].FirstName} {users[i].LastName}")</td>
+                            @for (int j = 0; j < daysOfWeek.Length; j++)
+                            {
+                                var idx = i * daysOfWeek.Length + j;
+                                var cellValue = grid[idx];
+                                <td>
+                                    <input type="hidden" name="Grid[@idx]" value="@cellValue" />
+                                    <select class="shift-dropdown shift-cell" data-row="@i" data-col="@j" style="width:100%;height:32px;padding:0 8px;border-radius:4px;font-weight:bold;text-align:center;background:#dee2e6;color:#888;">
+                                        <option value="" selected="@string.IsNullOrEmpty(cellValue)"> </option>
+                                        @foreach (var s in shiftTypes)
+                                        {
+                                            <option value="@s.Key" selected="@(cellValue == s.Key)">@s.Label</option>
+                                        }
+                                    </select>
+                                </td>
+                            }
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
 
-        <button type="submit" id="saveTemplateBtn" class="btn btn-primary">Save</button>
-    </form>
+            <button type="submit" id="saveTemplateBtn" class="btn btn-primary">Save</button>
+        </form>
 
-    <button type="button" id="autoAssignBtn" class="btn btn-success" style="margin-top:16px;">Generate Schedule</button>
-    <div class="d-flex align-items-center mb-2" style="width:100%;">
-        <div>
-            <label class="me-2">Assignment Range:</label>
-            <input type="date" name="assignStart" id="assignStart" class="form-control d-inline-block" style="width:150px;display:inline-block;" />
-            <span class="mx-2">to</span>
-            <input type="date" name="assignEnd" id="assignEnd" class="form-control d-inline-block" style="width:150px;display:inline-block;" />
-            <span class="text-muted ms-2">(Leave blank to use default shift range)</span>
+        <button type="button" id="autoAssignBtn" class="btn btn-success" style="margin-top:16px;">Generate Schedule</button>
+        <div class="d-flex align-items-center mb-2" style="width:100%;">
+            <div>
+                <label class="me-2">Assignment Range:</label>
+                <input type="date" name="assignStart" id="assignStart" class="form-control d-inline-block" style="width:150px;display:inline-block;" />
+                <span class="mx-2">to</span>
+                <input type="date" name="assignEnd" id="assignEnd" class="form-control d-inline-block" style="width:150px;display:inline-block;" />
+                <span class="text-muted ms-2">(Leave blank to use default shift range)</span>
+            </div>
+            <button type="button" id="deleteTemplateBtn" class="btn btn-outline-danger ms-auto" style="position:relative; right:-5px;" disabled>Delete Template</button>
         </div>
-        <button type="button" id="deleteTemplateBtn" class="btn btn-outline-danger ms-auto" style="position:relative; right:-5px;" disabled>Delete Template</button>
     </div>
 </div>
 </div>
