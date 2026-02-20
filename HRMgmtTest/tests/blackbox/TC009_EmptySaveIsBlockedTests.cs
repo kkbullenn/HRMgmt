@@ -131,7 +131,14 @@ public class TC009_EmptySaveIsBlockedTests : BlackboxTestBase
         var saveButton = Wait.Until(d => d.FindElement(By.Id("saveTemplateBtn")));
         Assert.That(saveButton.Enabled, Is.True, "Save button should be clickable in current implementation.");
 
-        _shiftPage.ClickSaveTemplate();
+        try
+        {
+            saveButton.Click();
+        }
+        catch
+        {
+            ((IJavaScriptExecutor)Driver).ExecuteScript("arguments[0].click();", saveButton);
+        }
         var alertText = AcceptAlertAndGetTextIfPresent(10);
 
         var saveError = _shiftPage.GetErrorAlertText();
