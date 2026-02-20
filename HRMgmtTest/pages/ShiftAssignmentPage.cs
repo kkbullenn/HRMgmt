@@ -125,19 +125,36 @@ public class ShiftAssignmentPage : BasePage
 
     public void SelectTemplateFromMenu(string templateName)
     {
-        var item = _wait.Until(d =>
-            d.FindElement(By.XPath($"//ul[@id='templateMenu']/li[normalize-space()='{templateName}']")));
+        var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(20));
+        IWebElement? item = null;
+
+        try
+        {
+            item = wait.Until(d => FindTemplateMenuItem(d, templateName));
+        }
+        catch (WebDriverTimeoutException)
+        {
+            _driver.Navigate().Refresh();
+            WaitForPage();
+            item = wait.Until(d => FindTemplateMenuItem(d, templateName));
+        }
+
         ClickElement(item);
 
-        // Wait for template to become active after loading
-        _wait.Until(d =>
+        // Wait for either active menu state or template input value update
+        wait.Until(d =>
         {
-            var element =
-                d.FindElement(By.XPath($"//ul[@id='templateMenu']/li[normalize-space()='{templateName}']"));
-            return element.GetAttribute("class").Contains("active");
+            var activeName = GetActiveTemplateNameFromDriver(d);
+            if (activeName.Equals(templateName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var currentName = d.FindElement(By.Name("templateName")).GetAttribute("value") ?? string.Empty;
+            return currentName.Trim().Equals(templateName, StringComparison.OrdinalIgnoreCase);
         });
 
-        System.Threading.Thread.Sleep(500); // Wait for template data to fully load
+        System.Threading.Thread.Sleep(300);
     }
 
     public void WaitForTemplateToLoad(string templateName)
@@ -322,5 +339,18 @@ public class ShiftAssignmentPage : BasePage
         var text = alert.Text ?? string.Empty;
         alert.Accept();
         return text.Trim();
+    }
+
+    private static IWebElement? FindTemplateMenuItem(IWebDriver driver, string templateName)
+    {
+        var items = driver.FindElements(By.CssSelector("#templateMenu li"));
+        return items.FirstOrDefault(li =>
+            (li.Text ?? string.Empty).Trim().Equals(templateName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string GetActiveTemplateNameFromDriver(IWebDriver driver)
+    {
+        var active = driver.FindElements(By.CssSelector("#templateMenu li.active")).FirstOrDefault();
+        return (active?.Text ?? string.Empty).Trim();
     }
 }

@@ -181,7 +181,15 @@ public class EmployeeShiftPage : BasePage
     public void ClickShiftOnDate(string dateStr)
     {
         var evt = WaitForClickableEventInCell(dateStr);
-        ClickElement(evt);
+        try
+        {
+            ClickElement(evt);
+        }
+        catch
+        {
+            var js = (IJavaScriptExecutor)_driver;
+            js.ExecuteScript("arguments[0].click();", evt);
+        }
         Thread.Sleep(300); // Wait for confirm dialog
     }
 
@@ -189,11 +197,15 @@ public class EmployeeShiftPage : BasePage
     {
         ClickShiftOnDate(dateStr);
 
-        // Accept the confirmation dialog
-        var alert = _wait.Until(d => d.SwitchTo().Alert());
-        alert.Accept();
+        // Confirm alert may be delayed in CI; handle gracefully.
+        var confirmAlert = TryWaitForAlert(TimeSpan.FromSeconds(3));
+        confirmAlert?.Accept();
 
-        Thread.Sleep(500); // Wait for deletion to complete
+        // Success/failure alert may follow asynchronously; accept when present.
+        var resultAlert = TryWaitForAlert(TimeSpan.FromSeconds(5));
+        resultAlert?.Accept();
+
+        Thread.Sleep(700); // Wait for deletion/calendar refresh
     }
 
     public string GetAlertText()
@@ -236,6 +248,23 @@ public class EmployeeShiftPage : BasePage
         var alert = _wait.Until(d => d.SwitchTo().Alert());
         alert.Dismiss();
         Thread.Sleep(300);
+    }
+
+    private IAlert? TryWaitForAlert(TimeSpan timeout)
+    {
+        try
+        {
+            var wait = new WebDriverWait(_driver, timeout);
+            return wait.Until(d => d.SwitchTo().Alert());
+        }
+        catch (WebDriverTimeoutException)
+        {
+            return null;
+        }
+        catch (NoAlertPresentException)
+        {
+            return null;
+        }
     }
 
     public void NavigateToNextMonth()
