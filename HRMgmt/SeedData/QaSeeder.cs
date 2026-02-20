@@ -64,22 +64,59 @@ internal static class QaSeeder
 
     public static void SeedQaTestAccount(OrgDbContext db)
     {
-        const string username = "qa_test";
-        const string password = "123456";
-        const string roleName = "Admin";
+        EnsureAccount(db, "qa_test", "123456", "Admin", "QA Test");
+        EnsureAccount(db, "tommy", "123456", "Admin", "Tommy Admin");
+        EnsureAccount(db, "JerryEmployee", "jerry123", "Employee", "Jerry Employee");
+        EnsureAccount(db, "JerryHR", "jerry123", "HR", "Jerry HR");
+        EnsureAccount(db, "JerryManager", "jerry123", "Manager", "Jerry Manager");
 
-        if (!db.Account.Any(a => a.Username == username))
+        EnsureBaselineTemplate(db, "QA_WEEKLY_BASE", 1, 0);
+        EnsureBaselineTemplate(db, "QA_BIWEEKLY_BASE", 2, 0);
+        EnsureBaselineTemplate(db, "QA_BIWEEKLY_BASE", 2, 1);
+
+        db.SaveChanges();
+    }
+
+    private static void EnsureAccount(OrgDbContext db, string username, string password, string roleName, string displayName)
+    {
+        if (db.Account.Any(a => a.Username == username))
         {
-            db.Account.Add(new Account
-            {
-                Username = username,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-                Role = roleName,
-                DisplayName = "QA Test",
-                CreatedAt = DateTime.UtcNow
-            });
-            db.SaveChanges();
+            return;
         }
+
+        db.Account.Add(new Account
+        {
+            Username = username,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+            Role = roleName,
+            DisplayName = displayName,
+            CreatedAt = DateTime.UtcNow
+        });
+    }
+
+    private static void EnsureBaselineTemplate(OrgDbContext db, string templateName, int weekType, int weekIndex)
+    {
+        if (db.SchedulingTemplates.Any(t => t.TemplateName == templateName && t.WeekType == weekType && t.WeekIndex == weekIndex))
+        {
+            return;
+        }
+
+        var userId = db.Users.OrderBy(u => u.UserId).Select(u => u.UserId).FirstOrDefault();
+        var shiftId = db.Shifts.OrderBy(s => s.Name).Select(s => s.ShiftId).FirstOrDefault();
+        if (userId == Guid.Empty || shiftId == Guid.Empty)
+        {
+            return;
+        }
+
+        db.SchedulingTemplates.Add(new SchedulingTemplate
+        {
+            TemplateName = templateName,
+            UserId = userId,
+            WeekType = weekType,
+            WeekIndex = weekIndex,
+            DayOfWeek = "Monday",
+            ShiftType = shiftId.ToString()
+        });
     }
 
 
