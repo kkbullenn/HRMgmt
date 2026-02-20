@@ -91,8 +91,11 @@ namespace HRMgmt.Controllers
                 return RedirectToAction("Login", "Account");
             }
 
-            var syncAddress = BuildAutoSyncedAddress(account.Username);
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
+            // var syncAddress = BuildAutoSyncedAddress(account.Username);
+            // var user = await _context.Users.FirstOrDefaultAsync(u => u.Address == syncAddress);
+            var (fName, lName) = BuildName(account.DisplayName, account.Username);
+            var user = await _context.Users.FirstOrDefaultAsync(u =>
+                u.FirstName == fName && u.LastName == lName);
 
             if (user == null)
             {
@@ -244,6 +247,13 @@ namespace HRMgmt.Controllers
 
                 return View(user);
             }
+            
+            var roles = _context.Roles
+                .AsNoTracking()
+                .OrderBy(r => r.RoleName)
+                .ToList();
+
+            ViewBag.Role = new SelectList(roles, "Id", "RoleName");
 
             return View("AdminEdit", user);
         }
@@ -261,6 +271,13 @@ namespace HRMgmt.Controllers
             {
                 return NotFound();
             }
+            
+            var roles = _context.Roles
+                .AsNoTracking()
+                .OrderBy(r => r.RoleName)
+                .ToList();
+
+            ViewBag.Role = new SelectList(roles, "Id", "RoleName");
 
             return View("AdminEdit", user);
         }
@@ -270,7 +287,7 @@ namespace HRMgmt.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Guid id,
-            [Bind("UserId,FirstName,LastName,DateOfBirth,Address,Photo")] User user, IFormFile? photoFile)
+            [Bind("UserId,FirstName,LastName,DateOfBirth,Address,RoleId,Photo,HourlyWage")] User user, IFormFile? photoFile)
         {
             if (id != user.UserId)
             {
@@ -319,6 +336,8 @@ namespace HRMgmt.Controllers
                     existingUser.LastName = user.LastName;
                     existingUser.DateOfBirth = user.DateOfBirth;
                     existingUser.Address = user.Address;
+                    existingUser.RoleId = user.RoleId;
+                    existingUser.HourlyWage = user.HourlyWage;
 
                     if (photoFile != null && photoFile.Length > 0)
                     {
