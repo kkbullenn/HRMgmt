@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   NUnit Test Run Settings for CI environments.
-  Use with: dotnet test --settings HRMgmtTest/test.runsettings
+  Use with: dotnet test -settings HRMgmtTest/test.runsettings
 -->
 <RunSettings>
   <!-- NUnit adapter settings -->
