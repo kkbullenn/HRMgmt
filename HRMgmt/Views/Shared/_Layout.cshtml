@@ -18,63 +18,53 @@
                 var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
                 var actionName = ViewContext.RouteData.Values["action"]?.ToString();
 
-                var isLandingPage = controllerName == "Home" && actionName == "Index";
+                // Use Session as a secondary check to ensure the UI stays hidden
+                var isUserLoggedIn = User.Identity?.IsAuthenticated == true &&
+                !string.IsNullOrEmpty(Context.Session.GetString("UserId"));
+
+                var isHome = controllerName == "Home" && actionName == "Index";
                 var isLoginPage = controllerName == "Account" && actionName == "Login";
             }
 
-            @* Brand only shows on Login page *@
-            @if (isLoginPage)
+            @if (isLoginPage || !isUserLoggedIn)
             {
-                <a class="brand-pill" asp-area="" asp-controller="Home" asp-action="Index">HRMgmt</a>
+                <a class="brand-pill" asp-controller="Home" asp-action="Index">HRMgmt</a>
             }
 
-            @* Nav only shows when logged in *@
-            @if (User.Identity?.IsAuthenticated == true)
+            @if (isUserLoggedIn)
             {
                 <nav class="nav-pills">
-                    @{
-                        var controller = ViewContext.RouteData.Values["controller"]?.ToString();
-                        var action = ViewContext.RouteData.Values["action"]?.ToString();
-                        var isHome = controller == "Home" && action == "Index";
-                    }
-                    @if (User.Identity?.IsAuthenticated == true && !isHome)
+                    @* Back Arrow - only if not on Home *@
+                    @if (!isHome)
                     {
-                        <a asp-controller="Home" asp-action="Index" class="back-pill" title="Back to Home">
-                            &#8592; @* Or <i class="bi bi-arrow-left"></i> if using Bootstrap Icons *@
-                        </a>
-                    }
-                    @{
-                        // These variables are already defined in your current layout
-                        var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+                        <a asp-controller="Home" asp-action="Index" class="back-pill" title="Back to Home">←</a>
                     }
 
                     @if (User.IsInRole("Admin") || User.IsInRole("HR"))
                     {
-                        <a class="nav-pill @(currentController == "Users" ? "active" : "")"
+                        <a class="nav-pill @(controllerName == "Users" ? "active" : "")"
                            asp-controller="Users" asp-action="Index">People</a>
 
-                        <a class="nav-pill @(currentController == "Shift" ? "active" : "")"
+                        <a class="nav-pill @(controllerName == "Shift" ? "active" : "")"
                            asp-controller="Shift" asp-action="Index">Shifts</a>
 
-                        <a class="nav-pill @(currentController == "Payroll" ? "active" : "")"
+                        <a class="nav-pill @(controllerName == "Payroll" ? "active" : "")"
                            asp-controller="Payroll" asp-action="Index">Payroll</a>
                     }
                 </nav>
-
             }
 
             <div class="nav-actions">
-    @if (User.Identity?.IsAuthenticated == true)
-    {
-        <div class="user-pill">
-            <span class="user-pill-name">Hello, @User.Identity.Name!</span>
-            @* Styled via .user-pill-link in site.css *@
-            <a class="user-pill-link" asp-controller="Account" asp-action="Logout">Logout</a>
-        </div>
-    }
-</div>
-
+                @if (isUserLoggedIn)
+                {
+                    <div class="user-pill">
+                        <span class="user-pill-name">Hello, @User.Identity.Name!</span>
+                        <a class="user-pill-link" asp-controller="Account" asp-action="Logout">Logout</a>
+                    </div>
+                }
+            </div>
         </header>
+
 
         <main class="page">
             @RenderBody()
