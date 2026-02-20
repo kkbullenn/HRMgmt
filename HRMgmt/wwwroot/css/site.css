@@ -313,3 +313,28 @@ body {
     gap: 8px;
     align-items: center;
 }
+
+/* Landing page centered login */
+.landing-login-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 26px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+.landing-login-btn {
+    min-width: 160px;
+    padding: 0.75rem 1.6rem;
+    border-radius: 14px;
+}
+
+/* Center landing content */
+.landing-center {
+    min-height: 60vh; /* pushes content to middle vertically */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* vertical center */
+    align-items: center; /* horizontal center */
+    text-align: center;
+}

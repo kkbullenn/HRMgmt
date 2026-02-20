@@ -14,11 +14,24 @@
     <div class="app-shell">
 
         <header class="pill-nav">
-            <a class="brand-pill" asp-area="" asp-controller="Home" asp-action="Index">HRMgmt</a>
+            @{
+                var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
+                var actionName = ViewContext.RouteData.Values["action"]?.ToString();
 
-            <nav class="nav-pills">
-                @if (User.Identity?.IsAuthenticated == true)
-                {
+                var isLandingPage = controllerName == "Home" && actionName == "Index";
+                var isLoginPage = controllerName == "Account" && actionName == "Login";
+            }
+
+            @* Brand only shows on Login page *@
+            @if (isLoginPage)
+            {
+                <a class="brand-pill" asp-area="" asp-controller="Home" asp-action="Index">HRMgmt</a>
+            }
+
+            @* Nav only shows when logged in *@
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <nav class="nav-pills">
                     @if (User.IsInRole("Employee"))
                     {
                         <a class="nav-pill" asp-controller="Users" asp-action="Profile">Profile</a>
@@ -37,12 +50,8 @@
                     {
                         <a class="nav-pill" asp-controller="Payroll" asp-action="AdminCalculate">Admin Payroll</a>
                     }
-                }
-                else
-                {
-                    <a class="nav-pill active" asp-controller="Home" asp-action="Index">Home</a>
-                }
-            </nav>
+                </nav>
+            }
 
             <div class="nav-actions">
                 @if (User.Identity?.IsAuthenticated == true)
@@ -54,7 +63,7 @@
                 }
                 else
                 {
-                    <a class="btn btn-primary" asp-controller="Account" asp-action="Login">Login</a>
+                    @* No login button in header when logged out *@
                 }
             </div>
         </header>

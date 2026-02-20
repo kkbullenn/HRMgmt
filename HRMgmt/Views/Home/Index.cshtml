@@ -1,13 +1,4 @@
-﻿@* @{
-    ViewData["Title"] = "Home Page";
-}
-
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div> *@
-
-@{
+﻿@{
     ViewData["Title"] = "Home";
     var userName = Context.Session.GetString("UserName");
 }
@@ -24,13 +15,22 @@
     else
     {
         <!-- Logout status -->
-        <div class="hero-content">
+        <section class="landing-center">
             <h1>HR Management</h1>
+
             <p>
-                Internal system for managing employee schedules,
-                payroll, and organizational records.
+                Internal system for managing employee schedules, payroll,
+                and organizational records.
             </p>
-        </div>
+
+            <div class="landing-login-row">
+                <a class="btn btn-primary landing-login-btn"
+                   asp-controller="Account"
+                   asp-action="Login">
+                    Login
+                </a>
+            </div>
+        </section>
     }
 
 </section>
