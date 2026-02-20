@@ -4,26 +4,49 @@
     ViewData["Title"] = "Shift Details";
 }
 
-<h2>Shift Details</h2>
-<div>
-    <h4>@Model.Name</h4>
-    <hr />
-    <dl class="row">
-        <dt class="col-sm-2">Start Time</dt>
-        <dd class="col-sm-10">@Model.StartTime</dd>
-        <dt class="col-sm-2">End Time</dt>
-        <dd class="col-sm-10">@Model.EndTime</dd>
-        <dt class="col-sm-2">Required Count</dt>
-        <dd class="col-sm-10">@Model.RequiredCount</dd>
-        <dt class="col-sm-2">Start Date</dt>
-        <dd class="col-sm-10">@Model.StartDate.ToString("yyyy-MM-dd")</dd>
-        <dt class="col-sm-2">End Date</dt>
-        <dd class="col-sm-10">@Model.EndDate.ToString("yyyy-MM-dd")</dd>
-        @* <dt class="col-sm-2">Recurrence Type</dt>
-        <dd class="col-sm-10">@Model.RecurrenceType</dd>
-        <dt class="col-sm-2">Recurrence Days</dt>
-        <dd class="col-sm-10">@Model.RecurrenceDays</dd> *@
-    </dl>
-    <a asp-action="Edit" asp-route-id="@Model.ShiftId">Edit</a> |
-    <a asp-action="Index">Back to List</a>
+<div class="d-flex justify-content-between align-items-start" style="margin-bottom:12px;">
+    <div>
+        <h1 style="margin:0; font-weight:800;">@Model.Name</h1>
+        <div style="color: var(--text-muted); margin-top:4px;">
+            Shift details and configuration
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.ShiftId">Edit</a>
+        <a class="btn btn-danger" asp-action="Delete" asp-route-id="@Model.ShiftId">Delete</a>
+    </div>
+</div>
+
+<div class="ui-card">
+    <div class="shift-details-grid">
+        <div class="shift-details-item">
+            <div class="shift-details-label">Start Time</div>
+            <div class="shift-details-value">@Model.StartTime.ToString(@"hh\:mm")</div>
+        </div>
+
+        <div class="shift-details-item">
+            <div class="shift-details-label">End Time</div>
+            <div class="shift-details-value">@Model.EndTime.ToString(@"hh\:mm")</div>
+        </div>
+
+        <div class="shift-details-item">
+            <div class="shift-details-label">Required Count</div>
+            <div class="shift-details-value">@Model.RequiredCount</div>
+        </div>
+
+        <div class="shift-details-item">
+            <div class="shift-details-label">Start Date</div>
+            <div class="shift-details-value">@Model.StartDate.ToString("yyyy-MM-dd")</div>
+        </div>
+
+        <div class="shift-details-item">
+            <div class="shift-details-label">End Date</div>
+            <div class="shift-details-value">@Model.EndDate.ToString("yyyy-MM-dd")</div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-4">
+        <a class="btn btn-outline-secondary" asp-action="Index">Back to List</a>
+    </div>
 </div>
