@@ -7,14 +7,9 @@ using Microsoft.Data.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-var useLocalDb = builder.Configuration.GetValue<bool>("UseLocalDb");
 var testModeValue = Environment.GetEnvironmentVariable("TEST_MODE");
 var isTestMode = !string.IsNullOrWhiteSpace(testModeValue) && bool.TryParse(testModeValue, out var testModeEnabled) && testModeEnabled;
-if (isTestMode)
-{
-    useLocalDb = true;
-}
+var useLocalDb = isTestMode;
 var hostedConnection = builder.Configuration.GetConnectionString("HostedConnection");
 var localConnection = builder.Configuration.GetConnectionString("LocalConnection");
 
