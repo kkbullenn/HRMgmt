@@ -2,15 +2,18 @@ using HRMgmt;
 using HRMgmt.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies; // ADDED: Required for Cookie Auth
+using HRMgmt.SeedData;
+using Microsoft.Data.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 var useLocalDb = builder.Configuration.GetValue<bool>("UseLocalDb");
 var testModeValue = Environment.GetEnvironmentVariable("TEST_MODE");
-if (!string.IsNullOrWhiteSpace(testModeValue) && bool.TryParse(testModeValue, out var testModeEnabled))
+var isTestMode = !string.IsNullOrWhiteSpace(testModeValue) && bool.TryParse(testModeValue, out var testModeEnabled) && testModeEnabled;
+if (isTestMode)
 {
-    useLocalDb = testModeEnabled;
+    useLocalDb = true;
 }
 var hostedConnection = builder.Configuration.GetConnectionString("HostedConnection");
 var localConnection = builder.Configuration.GetConnectionString("LocalConnection");
@@ -56,13 +59,19 @@ builder.Services.AddSession(options =>
 
 var app = builder.Build();
 
+if (isTestMode)
+{
+    RegisterLocalDbCleanup(app, localConnection);
+}
+
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<OrgDbContext>();
     if (db.Database.IsSqlite())
     {
         db.Database.EnsureCreated();
-        SeedQaTestAccount(db);
+        QaSeeder.Seed(db, app.Environment.ContentRootPath);
+        QaSeeder.SeedQaTestAccount(db);
     }
 }
 
@@ -91,28 +100,32 @@ app.MapControllerRoute(
 
 app.Run();
 
-static void SeedQaTestAccount(OrgDbContext db)
+static void RegisterLocalDbCleanup(WebApplication app, string? localConnection)
 {
-    const string username = "qa_test";
-    const string password = "123456";
-    const string roleName = "Admin";
-
-    if (!db.Roles.Any(r => r.RoleName == roleName))
+    if (string.IsNullOrWhiteSpace(localConnection))
     {
-        db.Roles.Add(new Role { RoleName = roleName });
-        db.SaveChanges();
+        return;
     }
 
-    if (!db.Account.Any(a => a.Username == username))
+    var builder = new SqliteConnectionStringBuilder(localConnection);
+    var dataSource = builder.DataSource;
+    if (string.IsNullOrWhiteSpace(dataSource))
     {
-        db.Account.Add(new Account
+        return;
+    }
+
+    app.Lifetime.ApplicationStopping.Register(() =>
+    {
+        try
         {
-            Username = username,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-            Role = roleName,
-            DisplayName = "QA Test",
-            CreatedAt = DateTime.UtcNow
-        });
-        db.SaveChanges();
-    }
+            if (File.Exists(dataSource))
+            {
+                File.Delete(dataSource);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup; ignore errors on shutdown.
+        }
+    });
 }

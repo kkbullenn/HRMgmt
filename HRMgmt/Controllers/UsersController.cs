@@ -21,7 +21,7 @@ namespace HRMgmt.Controllers
         {
             _context = context;
         }
-
+       
         // GET: Users
         public async Task<IActionResult> Index()
         {
@@ -421,6 +421,7 @@ namespace HRMgmt.Controllers
                 await _context.SaveChangesAsync();
             }
         }
+
 
         // FIXED: Added null coalescing '?? string.Empty' to avoid null reference exceptions
         private static (string FirstName, string LastName) BuildName(string? displayName, string username)
