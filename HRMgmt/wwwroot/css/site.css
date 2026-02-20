@@ -338,3 +338,119 @@ body {
     align-items: center; /* horizontal center */
     text-align: center;
 }
+
+/* ================================
+  People Cards
+================================ */
+.people-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.people-card {
+    display: block;
+    background: rgba(255,255,255,0.85);
+    border: none;
+    width: 100%;
+    text-align: left;
+    border-radius: 18px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.06);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease;
+    text-decoration: none;
+    color: inherit;
+}
+
+    .people-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 18px 42px rgba(0,0,0,0.10);
+        text-decoration: none;
+    }
+    .people-card:focus {
+        outline: none;
+        box-shadow: 0 0 0 0.25rem var(--primary-light);
+    }
+
+.people-avatar {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    background: #f3f4f6;
+}
+
+.people-card-body {
+    padding: 12px 14px 14px 14px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.people-name {
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.people-sub {
+    color: var(--text-muted);
+    font-size: .9rem;
+    margin-top: 4px;
+}
+
+.people-pill {
+    padding: .25rem .6rem;
+    border-radius: 999px;
+    font-size: .8rem;
+    font-weight: 700;
+    background: rgba(124,58,237,0.12);
+    color: var(--primary);
+    white-space: nowrap;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    border: none;
+    border-radius: 10px;
+}
+
+    .btn-danger:hover {
+        background: #b91c1c;
+    }
+
+
+/* Details page typography */
+.details-label {
+    color: var(--text-muted);
+    font-size: .85rem;
+    margin-bottom: 4px;
+}
+
+.details-value {
+    font-weight: 750;
+    color: var(--text-dark);
+}
+
+/* Make delete button fit theme better (still “danger”) */
+.details-delete-btn {
+    border-radius: 14px;
+    padding: .65rem 1.1rem;
+    font-weight: 800;
+}
+
+.btn-danger {
+    background-color: #ef4444;
+    border: none;
+    border-radius: 10px;
+    padding: 0.6rem 1.2rem;
+}
+
+    .btn-danger:hover {
+        background-color: #dc2626;
+    }
+
+.btn-outline-secondary {
+    border-radius: 10px;
+}
