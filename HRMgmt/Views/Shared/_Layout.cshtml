@@ -32,25 +32,24 @@
             @if (User.Identity?.IsAuthenticated == true)
             {
                 <nav class="nav-pills">
-                    @if (User.IsInRole("Employee"))
-                    {
-                        <a class="nav-pill" asp-controller="Users" asp-action="Profile">Profile</a>
-                        <a class="nav-pill" asp-controller="Shift" asp-action="EmployeeShift">My Shifts</a>
+                    @{
+                        // These variables are already defined in your current layout
+                        var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
                     }
 
                     @if (User.IsInRole("Admin") || User.IsInRole("HR"))
                     {
-                        <a class="nav-pill" asp-controller="Users" asp-action="Index">People</a>
-                        <a class="nav-pill" asp-controller="Shift" asp-action="EmployeeShift">Schedule</a>
-                        <a class="nav-pill" asp-controller="Shift" asp-action="Index">Shifts</a>
-                        <a class="nav-pill" asp-controller="Payroll" asp-action="Index">Payroll</a>
-                    }
+                        <a class="nav-pill @(currentController == "Users" ? "active" : "")"
+                           asp-controller="Users" asp-action="Index">People</a>
 
-                    @if (User.IsInRole("Admin"))
-                    {
-                        <a class="nav-pill" asp-controller="Payroll" asp-action="AdminCalculate">Admin Payroll</a>
+                        <a class="nav-pill @(currentController == "Shift" ? "active" : "")"
+                           asp-controller="Shift" asp-action="Index">Shifts</a>
+
+                        <a class="nav-pill @(currentController == "Payroll" ? "active" : "")"
+                           asp-controller="Payroll" asp-action="Index">Payroll</a>
                     }
                 </nav>
+
             }
 
             <div class="nav-actions">

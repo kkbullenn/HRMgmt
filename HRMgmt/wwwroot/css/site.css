@@ -300,12 +300,14 @@ body {
 }
 
     .nav-pill:hover {
-        background: rgba(124, 58, 237, 0.08);
+        background: rgba(124, 58, 237, 0.12);
+        color: var(--primary); 
     }
 
     .nav-pill.active {
-        background: #111827;
+        background: #6D28D9; 
         color: #fff;
+        box-shadow: 0 4px 12px rgba(109, 40, 217, 0.2); 
     }
 
 .nav-actions {
@@ -453,4 +455,64 @@ body {
 
 .btn-outline-secondary {
     border-radius: 10px;
+}
+
+/* People Directory Styling */
+.people-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    padding-top: 20px;
+}
+
+.people-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    text-decoration: none !important;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.3s ease;
+    border: 1px solid #eee;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
+
+    .people-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+        border-color: var(--primary-color, #0d6efd);
+    }
+
+.people-avatar {
+    width: 65px;
+    height: 65px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #f0f2f5;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px #eee;
+}
+
+.people-name {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #212529;
+    margin-bottom: 2px;
+}
+
+.people-sub {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.people-pill {
+    margin-left: auto;
+    background: #e7f1ff;
+    color: #0d6efd;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.8rem;
 }
