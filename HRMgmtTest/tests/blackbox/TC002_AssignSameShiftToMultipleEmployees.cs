@@ -29,7 +29,7 @@ public class TC002_AssignSameShiftToMultipleEmployees
     [Test]
     public void TC002_AssignSameShiftToMultipleEmployees_Test()
     {
-        // Step 1: Login as Admin (if authentication is implemented)
+        // Step 1: Login as Admin
         _loginPage.GoTo();
         _loginPage.Login("qa_test", "123456");
 

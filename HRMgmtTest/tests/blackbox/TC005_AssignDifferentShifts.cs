@@ -80,7 +80,7 @@ public class TC005_AssignDifferentShifts
 
         // Step 7: Verify each employee shows correct shift in employee calendar
         string targetDate = "2026-02-23"; // Monday, Feb 23, 2026
-        
+
         // Check E005's calendar - should have D4
         _employeeShiftPage.GoTo();
         _employeeShiftPage.SelectEmployee(EmployeeId5);
@@ -89,9 +89,10 @@ public class TC005_AssignDifferentShifts
         var e005Shifts = _employeeShiftPage.GetShiftNamesOnDate(targetDate);
         Assert.That(e005Shifts, Has.Count.GreaterThanOrEqualTo(1),
             "E005 should have at least one shift");
-        Assert.That(string.Join(" ", e005Shifts).ToLower(), Does.Contain("12:00").Or.Contain("d4").Or.Contain("afternoon"),
+        Assert.That(string.Join(" ", e005Shifts).ToLower(),
+            Does.Contain("12:00").Or.Contain("d4").Or.Contain("afternoon"),
             $"E005 should have shift D4 (12:00-17:00), got: {string.Join(", ", e005Shifts)}");
-        
+
         // Check E006's calendar - should have D5
         _employeeShiftPage.SelectEmployee(EmployeeId6);
         Assert.That(_employeeShiftPage.HasShiftOnDate(targetDate), Is.True,
@@ -99,9 +100,10 @@ public class TC005_AssignDifferentShifts
         var e006Shifts = _employeeShiftPage.GetShiftNamesOnDate(targetDate);
         Assert.That(e006Shifts, Has.Count.GreaterThanOrEqualTo(1),
             "E006 should have at least one shift");
-        Assert.That(string.Join(" ", e006Shifts).ToLower(), Does.Contain("10:00").Or.Contain("d5").Or.Contain("mid-morning"),
+        Assert.That(string.Join(" ", e006Shifts).ToLower(),
+            Does.Contain("10:00").Or.Contain("d5").Or.Contain("mid-morning"),
             $"E006 should have shift D5 (10:00-13:30), got: {string.Join(", ", e006Shifts)}");
-        
+
         // Check E007's calendar - should have D6
         _employeeShiftPage.SelectEmployee(EmployeeId7);
         Assert.That(_employeeShiftPage.HasShiftOnDate(targetDate), Is.True,
@@ -109,7 +111,8 @@ public class TC005_AssignDifferentShifts
         var e007Shifts = _employeeShiftPage.GetShiftNamesOnDate(targetDate);
         Assert.That(e007Shifts, Has.Count.GreaterThanOrEqualTo(1),
             "E007 should have at least one shift");
-        Assert.That(string.Join(" ", e007Shifts).ToLower(), Does.Contain("13:30").Or.Contain("d6").Or.Contain("mid-afternoon"),
+        Assert.That(string.Join(" ", e007Shifts).ToLower(),
+            Does.Contain("13:30").Or.Contain("d6").Or.Contain("mid-afternoon"),
             $"E007 should have shift D6 (13:30-19:00), got: {string.Join(", ", e007Shifts)}");
 
         // Verify no cross-assignment errors
