@@ -21,7 +21,7 @@
                 var isLandingPage = controllerName == "Home" && actionName == "Index";
                 var isLoginPage = controllerName == "Account" && actionName == "Login";
                 var userFirstName = Context.Session.GetString("UserFirstName");
-
+                var isFullyLoggedIn = User.Identity?.IsAuthenticated == true && !string.IsNullOrEmpty(userFirstName);
             }
 
             @* Brand only shows on Login page *@
@@ -31,7 +31,7 @@
             }
 
             @* Nav only shows when logged in *@
-            @if (User.Identity?.IsAuthenticated == true)
+            @if (isFullyLoggedIn)
             {
                 
                 <nav class="nav-pills">
@@ -65,7 +65,7 @@
             }
 
             <div class="nav-actions">
-                @if (User.Identity?.IsAuthenticated == true)
+                @if (isFullyLoggedIn)
                 {
                     <div class="user-pill">
                         <span class="user-pill-name">Hello, @User.Identity.Name.Split(" ")[0]!</span>
