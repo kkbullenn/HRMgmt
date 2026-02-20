@@ -15,6 +15,14 @@ public abstract class BlackboxTestBase
     public virtual void SetUp()
     {
         var options = new ChromeOptions();
+        if (string.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            options.AddArgument("--headless=new");
+            options.AddArgument("--no-sandbox");
+            options.AddArgument("--disable-dev-shm-usage");
+            options.AddArgument("--remote-debugging-port=9222");
+        }
         options.AddArgument("--window-size=1600,1000");
         options.AddArgument("--no-first-run");
         options.AddArgument("--no-default-browser-check");
@@ -38,8 +46,23 @@ public abstract class BlackboxTestBase
     [TearDown]
     public virtual void TearDown()
     {
-        Driver.Quit();
-        Driver.Dispose();
+        if (Driver == null)
+        {
+            return;
+        }
+
+        try
+        {
+            Driver.Quit();
+        }
+        catch
+        {
+            // Ignore shutdown errors in teardown.
+        }
+        finally
+        {
+            Driver.Dispose();
+        }
     }
 
     protected void LoginAsAdminIfCredentialsExist()
