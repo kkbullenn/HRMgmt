@@ -1,10 +1,10 @@
-# NF-Security Test Execution Report
+# NF-Security Authorization Test Execution Report
 
 ## Build Info
 - Branch: `test/aira-security-v1`
 - Commit SHA: `(update after commit)`
 - Executed At: `2026-02-19 23:32:22 -08:00`
-- Focus: Authentication + RBAC route access (Use Cases Table role matrix)
+- Focus: Authorization: Login + RBAC route access (Use Cases Table role matrix)
 - Environment: Local app (`http://localhost:5175`)
 - DB mode: Local SQLite (`TEST_MODE=true`)
 - Reason for local DB: hosted DB/schema changed frequently; local seeded baseline keeps tests reproducible.
