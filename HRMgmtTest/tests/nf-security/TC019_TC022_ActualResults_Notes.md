@@ -2,15 +2,15 @@
 
 ## TC-019 (Login as Admin)
 - Actual Results:
-  - PASS. Admin accessed schedule, shifts, payroll, and users pages successfully.
+  - FAIL. Admin could access `/Payroll/Create`, but matrix expects payroll read-only.
 - Notes:
-  - Admin role behaved as expected on tested protected routes.
+  - Matrix mismatch: Admin payroll permissions are broader than expected.
 
 ## TC-020 (Login as Manager)
 - Actual Results:
-  - FAIL. Manager was able to access `/Users` when expected to be blocked.
+  - FAIL. Manager was denied on `/Shift/Create`, but matrix expects shift CRUD for Manager.
 - Notes:
-  - Indicates missing/insufficient role restriction for manager on user-management endpoint.
+  - Matrix mismatch: Manager is under-privileged for shift management routes.
 
 ## TC-021 (Login as Employee)
 - Actual Results:
@@ -20,11 +20,11 @@
 
 ## TC-022 (Login as HR)
 - Actual Results:
-  - FAIL. HR was able to access `/Role/Index` when expected to be admin-only.
+  - FAIL. HR was able to access `/Users/Create` when expected to be blocked.
 - Notes:
-  - If role-management is intended admin-only, backend route restriction is missing.
+  - Matrix mismatch: HR should be Users R/U only.
 
-## SC-001 (Unauthenticated Route Protection)
+## TC-023 (Unauthenticated Route Protection)
 - Actual Results:
   - FAIL. Unauthenticated user was able to access `/Role/Index` (expected redirect to login).
 - Notes:

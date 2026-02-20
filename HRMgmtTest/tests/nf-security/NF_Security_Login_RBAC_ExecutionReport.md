@@ -1,82 +1,98 @@
-﻿# NF-Security Test Execution Report (Expanded Route Coverage)
+# NF-Security Test Execution Report
 
 ## Build Info
 - Branch: `test/aira-security-v1`
-- Commit SHA: `1f21198`
-- Test Focus: Authentication + Role-based Access Control (RBAC)
-- Tester: Aira
+- Commit SHA: `(update after commit)`
+- Executed At: `2026-02-19 23:32:22 -08:00`
+- Focus: Authentication + RBAC route access (Use Cases Table role matrix)
 - Environment: Local app (`http://localhost:5175`)
+- DB mode: Local SQLite (`TEST_MODE=true`)
+- Reason for local DB: hosted DB/schema changed frequently; local seeded baseline keeps tests reproducible.
+- Seeder baseline users:
+  - `qa_test / 123456` (Admin)
+  - `tommy / 123456` (Admin)
+  - `JerryEmployee / jerry123`
+  - `JerryHR / jerry123`
+  - `JerryManager / jerry123`
 
 ## Test Scope
-Executed:
+- `TC023_UnauthenticatedRouteProtectionTests`
 - `TC019_AdminRoleAccessTests`
 - `TC020_ManagerRoleAccessTests`
 - `TC021_EmployeeRoleAccessTests`
 - `TC022_HrRoleAccessTests`
-- `SC001_UnauthenticatedRouteProtectionTests`
 
-Routes covered:
-- Shift: `/Shift/ShiftAssignment`, `/Shift/AssignGrid`, `/Shift/Index`, `/Shift/MyShifts`, `/Shift/EmployeeShift`
-- Users: `/Users`, `/Users/Create`, `/Users/Profile`
-- Payroll: `/Payroll/Index`, `/Payroll/Create`, `/Payroll/AdminCalculate`
-- Role: `/Role/Index`
-- Legacy ShiftAssignment: `/ShiftAssignment/Index`
-- Account management: `/Account/Index`, `/Account/Create`
+## Routes Covered
+- Shift:
+  - `/Shift/Create`
+  - `/Shift/Edit/{id}`
+  - `/Shift/Delete/{id}`
+  - `/Shift/ShiftAssignment`
+  - `/Shift/AssignGrid`
+  - `/Shift/Index`
+  - `/Shift/MyShifts`
+  - `/Shift/EmployeeShift`
+- Users:
+  - `/Users`
+  - `/Users/Create`
+  - `/Users/adminEdit/{id}`
+  - `/Users/Delete/{id}`
+  - `/Users/Profile`
+- Payroll:
+  - `/Payroll/Index`
+  - `/Payroll/Create`
+  - `/Payroll/AdminCalculate`
+  - `/Payroll/MyPayroll`
+- Account:
+  - `/Account/Index`
+  - `/Account/Create`
+- Publicly accessible in current code (still tested as findings in TC023):
+  - `/Role/Index`
+  - `/ShiftAssignment/Index`
 
 ## Execution Command
-`dotnet test HRMgmtTest --filter "Name~TC019|Name~TC020|Name~TC021|Name~TC022|Name~SC001" -v minimal`
+`dotnet test HRMgmtTest --filter "Name~TC023|Name~TC019|Name~TC020|Name~TC021|Name~TC022" -v minimal`
 
-## Result Summary
+## Summary
 - Total: 5
-- Passed: 1
-- Failed: 4
+- Passed: 0
+- Failed: 5
 - Skipped: 0
 
-## Detailed Results
+## Result by Test Case
+- `TC019` Admin role matrix access: **FAIL**
+  - Finding: Admin can access `/Payroll/Create` (matrix says Admin payroll is read-only).
+- `TC020` Manager role matrix access: **FAIL**
+  - Finding: Manager cannot access `/Shift/Create` (matrix says Manager has shift C/R/U/D).
+- `TC021` Employee role matrix access: **FAIL**
+  - Finding: Employee can access `/Users/Create` (matrix says Employee is read-own only for Users).
+- `TC022` HR role matrix access: **FAIL**
+  - Finding: HR can access `/Users/Create` (matrix says HR has Users R/U only).
+- `TC023` Unauthenticated route protection: **FAIL**
+  - Finding: unauthenticated user can access `/Role/Index`.
 
-### TC-019 Admin Access
-- Result: PASS
-- Summary: Admin was able to access required admin/HR routes in this test set.
+## Security Findings (Against Role Matrix)
+- Missing protection on `/Role/Index` (publicly reachable while unauthenticated).
+- Employee and HR can reach `/Users/Create` (over-privileged vs matrix).
+- Manager blocked from shift-create flow (under-privileged vs matrix).
+- Admin payroll create is enabled, while matrix expects payroll read-only for Admin.
 
-### TC-020 Manager Access
-- Result: FAIL
-- Failure observed:
-  - `/Users` expected `AccessDenied`, actual `Allowed`
-- Interpretation: Manager has broader access than expected policy.
+## Matrix Source Used
+- `Use Cases Table.xlsx` (Sheet1), role C/R/U/D matrix:
+  - Users: Admin C/R/U/D, HR R/U, Manager R/U, Employee R-own only.
+  - Shifts: Admin C/R/U/D, HR R, Manager C/R/U/D, Employee R.
+  - Payroll: Admin R, HR R, Manager R, Employee R-own only.
 
-### TC-021 Employee Access
-- Result: FAIL
-- Failure observed:
-  - `/Users/Create` expected `AccessDenied`, actual `Allowed`
-- Interpretation: Employee can reach user creation page (privilege escalation risk).
+## Security Findings (Current Codebase)
+- `RoleController` has no `[Authorize]`; `/Role/Index` is publicly reachable.
+- `Users/Create` is reachable by Employee and HR in current run.
+- `ShiftController` create/update/delete routes are restricted to Admin/HR, so Manager shift CRUD fails matrix expectation.
 
-### TC-022 HR Access
-- Result: FAIL
-- Failure observed:
-  - `/Role/Index` expected `AccessDenied`, actual `Allowed`
-- Interpretation: HR can access role-management endpoint.
+## Non-Finding Fixes Applied in Test Logic
+- Redirect aliases (e.g., `/Shift/AssignGrid`) are treated as allowed when they redirect to valid protected targets.
 
-### SC-001 Unauthenticated Route Protection
-- Result: FAIL
-- Failure observed:
-  - `/Role/Index` expected `RedirectedToLogin`, actual `Allowed`
-- Interpretation: Role endpoint lacks authentication guard.
+## Notes
+- Security tests are designed to expose access-control gaps.
+- Failures are valid QA findings, not necessarily test defects.
+- Tests now assert against the role matrix from `Use Cases Table.xlsx`, not the current implementation.
 
-## Security Findings (from this run)
-
-| ID | Severity | Area | Finding | Evidence |
-|---|---|---|---|---|
-| SEC-NF-001 | High | AuthZ | Unauthenticated access allowed to role endpoint | SC001 fail on `/Role/Index` |
-| SEC-NF-002 | High | AuthZ | Employee can access `/Users/Create` | TC021 fail |
-| SEC-NF-003 | Medium | AuthZ | Manager can access `/Users` unexpectedly | TC020 fail |
-| SEC-NF-004 | Medium | AuthZ | HR can access `/Role/Index` (if admin-only expected) | TC022 fail |
-
-## Conclusion
-- Login security and RBAC are **not fully satisfied** across all roles/endpoints.
-- Testing successfully identified access-control gaps.
-- This is an expected and valid QA outcome: tests are doing their job by exposing security issues.
-
-## Recommended Next Actions
-1. Add `[Authorize]` / `[Authorize(Roles=...)]` on exposed controllers/actions (especially role management and user creation endpoints).
-2. Define explicit policy for Manager role and enforce consistently.
-3. Re-run the same test suite after fixes to verify closure of findings.

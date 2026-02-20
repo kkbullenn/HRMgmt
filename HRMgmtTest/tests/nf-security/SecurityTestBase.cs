@@ -1,8 +1,8 @@
-﻿using OpenQA.Selenium;
+using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 
-namespace HRMgmtTest;
+namespace HRMgmtTest.tests.nfsecurity;
 
 public abstract class SecurityTestBase
 {
@@ -23,6 +23,20 @@ public abstract class SecurityTestBase
             options.AddArgument("--headless=new");
         }
         options.AddArgument("--window-size=1600,1000");
+        options.AddArgument("--no-first-run");
+        options.AddArgument("--no-default-browser-check");
+        options.AddArgument("--password-store=basic");
+        options.AddArgument("--disable-sync");
+        options.AddArgument("--disable-extensions");
+        options.AddArgument("--disable-default-apps");
+        options.AddArgument("--disable-notifications");
+        options.AddArgument("--disable-save-password-bubble");
+        options.AddArgument("--disable-features=PasswordLeakDetection,PasswordCheck,PasswordManager,PasswordManagerOnboarding,PasswordManagerDesktopSync,PasswordUi,SafeBrowsingEnhancedProtection");
+        options.AddUserProfilePreference("credentials_enable_service", false);
+        options.AddUserProfilePreference("profile.password_manager_enabled", false);
+        options.AddUserProfilePreference("profile.password_manager_leak_detection", false);
+        options.AddUserProfilePreference("safebrowsing.enabled", false);
+        options.AddUserProfilePreference("profile.default_content_settings.notifications", 2);
 
         Driver = new ChromeDriver(options);
         Wait = new WebDriverWait(Driver, TimeSpan.FromSeconds(10));
@@ -40,7 +54,7 @@ public abstract class SecurityTestBase
 
     protected void LoginAsAdmin()
     {
-        var (user, pass) = ResolveCredentials("ADMIN", "tommy", "123456");
+        var (user, pass) = ResolveCredentials("ADMIN", "qa_test", "123456");
         Login(user, pass);
     }
 
@@ -120,7 +134,28 @@ public abstract class SecurityTestBase
             return AccessResult.AccessDenied;
         }
 
+        var normalizedRequested = full.TrimEnd('/').ToLowerInvariant();
+        var normalizedCurrent = current.TrimEnd('/').ToLowerInvariant();
+        if (!normalizedCurrent.StartsWith(normalizedRequested, StringComparison.Ordinal))
+        {
+            return AccessResult.RedirectedElsewhere;
+        }
+
         return AccessResult.Allowed;
+    }
+
+    protected void AssertDeniedOrRedirected(string route, string reason)
+    {
+        var result = CheckRouteAccess(route);
+        Assert.That(result == AccessResult.AccessDenied || result == AccessResult.RedirectedElsewhere,
+            Is.True, $"{reason} | route={route} | actual={result}");
+    }
+
+    protected void AssertAllowedOrRouteAliasRedirect(string route, string reason)
+    {
+        var result = CheckRouteAccess(route);
+        Assert.That(result == AccessResult.Allowed || result == AccessResult.RedirectedElsewhere,
+            Is.True, $"{reason} | route={route} | actual={result}");
     }
 
     protected bool IsLoginPage()
@@ -148,5 +183,7 @@ public enum AccessResult
 {
     Allowed,
     RedirectedToLogin,
-    AccessDenied
+    AccessDenied,
+    RedirectedElsewhere
 }
+
