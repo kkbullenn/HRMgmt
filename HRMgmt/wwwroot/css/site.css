@@ -121,6 +121,28 @@ body {
   color: var(--primary) !important;
 }
 
+.nav-pill {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 50px; /* Makes it look like a pill */
+    text-decoration: none;
+    color: #333; /* Default text color */
+    transition: background-color 0.3s ease;
+}
+
+/* The ACTIVE state */
+.nav-pill.active {
+    background-color: #6f42c1 !important;
+    color: white !important;
+    font-weight: bold;
+}
+
+.nav-pill:hover:not(.active) {
+    background-color: #f3e5f5; 
+    color: #6f42c1;
+}
+
+
 
 /* ================================
   UI Card Component
