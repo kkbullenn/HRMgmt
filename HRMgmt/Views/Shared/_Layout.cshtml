@@ -33,6 +33,17 @@
             {
                 <nav class="nav-pills">
                     @{
+                        var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+                        var action = ViewContext.RouteData.Values["action"]?.ToString();
+                        var isHome = controller == "Home" && action == "Index";
+                    }
+                    @if (User.Identity?.IsAuthenticated == true && !isHome)
+                    {
+                        <a asp-controller="Home" asp-action="Index" class="back-pill" title="Back to Home">
+                            &#8592; @* Or <i class="bi bi-arrow-left"></i> if using Bootstrap Icons *@
+                        </a>
+                    }
+                    @{
                         // These variables are already defined in your current layout
                         var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
                     }
@@ -53,15 +64,15 @@
             }
 
             <div class="nav-actions">
-                @if (User.Identity?.IsAuthenticated == true)
-                {
-                    <div class="user-pill">
-                        <span class="user-pill-name">Hello, @User.Identity.Name!</span>
-                        @* Styled via .user-pill-link in site.css *@
-                        <a class="user-pill-link" asp-controller="Account" asp-action="Logout">Logout</a>
-                    </div>
-                }
-            </div>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <div class="user-pill">
+            <span class="user-pill-name">Hello, @User.Identity.Name!</span>
+            @* Styled via .user-pill-link in site.css *@
+            <a class="user-pill-link" asp-controller="Account" asp-action="Logout">Logout</a>
+        </div>
+    }
+</div>
 
         </header>
 
