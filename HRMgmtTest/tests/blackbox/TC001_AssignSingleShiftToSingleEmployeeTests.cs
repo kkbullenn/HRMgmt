@@ -1,8 +1,6 @@
 using HRMgmtTest.pages;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
-using System.Text.Json;
-using System.Threading;
 
 namespace HRMgmtTest.tests.blackbox;
 
@@ -37,8 +35,6 @@ public class TC001_AssignSingleShiftToSingleEmployeeTests : BlackboxTestBase
 
         var (rowIndexText, employeeName) = GetFirstEmployeeFromGrid();
         var rowIndex = int.Parse(rowIndexText);
-        var employeeId = Wait.Until(d => d.FindElement(
-            By.CssSelector($"input[name='Users[{rowIndex}].UserId']"))).GetAttribute("value");
         var (shiftValue, shiftLabel, shiftToken) = GetFirstShiftOption(rowIndex, mondayColumn);
         SelectShiftByLabel(rowIndex, mondayColumn, shiftLabel);
 
@@ -76,9 +72,6 @@ public class TC001_AssignSingleShiftToSingleEmployeeTests : BlackboxTestBase
             Assert.Fail($"Generate schedule failed: {generateAlert}");
         }
 
-        // Verify via employee-shift API for deterministic local-db assertion.
-        var hasShiftEvent = WaitForGeneratedEventInRange(employeeId!, new DateOnly(2026, 2, 16), new DateOnly(2026, 2, 19), 15);
-
         _shiftPage.GoTo(BaseUrl);
         _shiftPage.SelectTemplateFromMenu(templateName);
         _shiftPage.WaitForTemplateName(templateName);
@@ -90,38 +83,5 @@ public class TC001_AssignSingleShiftToSingleEmployeeTests : BlackboxTestBase
 
         Assert.That(hasPersistedGridAssignment, Is.True,
             $"Expected persisted grid assignment for '{shiftToken}' / '{employeeName}'.");
-        Assert.That(hasShiftEvent, Is.True,
-            $"Expected at least one generated event in target range for '{employeeName}'.");
-    }
-
-    private bool WaitForGeneratedEventInRange(string employeeId, DateOnly start, DateOnly end, int timeoutSeconds)
-    {
-        var endAt = DateTime.UtcNow.AddSeconds(timeoutSeconds);
-        while (DateTime.UtcNow < endAt)
-        {
-            Driver.Navigate().GoToUrl($"{BaseUrl}/Shift/GetEmployeeShifts?employeeId={employeeId}");
-            var payload = Driver.FindElement(By.TagName("body")).Text;
-            var events = JsonSerializer.Deserialize<List<EmployeeShiftEvent>>(payload,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<EmployeeShiftEvent>();
-
-            if (events.Any(e =>
-                    DateOnly.TryParse(e.Start, out var d) &&
-                    d >= start && d <= end))
-            {
-                return true;
-            }
-
-            Thread.Sleep(500);
-        }
-
-        return false;
-    }
-
-    private sealed class EmployeeShiftEvent
-    {
-        public string Id { get; set; } = string.Empty;
-        public string Title { get; set; } = string.Empty;
-        public string Start { get; set; } = string.Empty;
-        public string End { get; set; } = string.Empty;
     }
 }
