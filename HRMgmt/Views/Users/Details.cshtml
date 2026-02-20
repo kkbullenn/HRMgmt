@@ -81,16 +81,20 @@
 
     <!-- Actions -->
     <div class="d-flex gap-2 mt-4">
-        <a class="btn btn-primary"
-           asp-action="Edit"
-           asp-route-id="@Model.UserId">
-            Edit
-        </a>
+        @if (User.IsInRole("Admin"))
+        {
+            <a class="btn btn-primary"
+               asp-action="Edit"
+               asp-route-id="@Model.UserId">
+                Edit
+            </a>
+            <a class="btn btn-outline-secondary"
+               asp-action="Index">
+                Back to List
+            </a>
+        }
 
-        <a class="btn btn-outline-secondary"
-           asp-action="Index">
-            Back to List
-        </a>
+        
     </div>
 
 </div>
