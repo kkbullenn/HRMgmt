@@ -48,31 +48,55 @@ jobs:
           # ChromeDriver is usually pre-installed; verify it's available
           which chromedriver || echo "ChromeDriver not found in PATH"
 
-      - name: Start application
+      - name: Install coverage tools
+        run: |
+          dotnet tool install --global dotnet-coverage --version 18.4.1 \
+            || dotnet tool update --global dotnet-coverage --version 18.4.1 \
+            || true
+          dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.5.1 \
+            || dotnet tool update --global dotnet-reportgenerator-globaltool --version 5.5.1 \
+            || true
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Create output directories
+        run: |
+          mkdir -p ${{ github.workspace }}/test-results
+          mkdir -p ${{ github.workspace }}/coverage
+          mkdir -p ${{ github.workspace }}/coverage-html
+          mkdir -p ${{ github.workspace }}/coverage-history
+
+      - name: Start application under coverage collector
         env:
           ConnectionStrings__LocalConnection: Data Source=${{ github.workspace }}/HRMgmt/hrmgmt.db
+          COVERAGE_SESSION_ID: hrmgmt-${{ github.run_id }}
         run: |
-          cd HRMgmt
-          dotnet run --no-build --configuration Debug --urls http://127.0.0.1:5175 > ../app.log 2>&1 &
-          APP_PID=$!
-          echo "APP_PID=$APP_PID" >> $GITHUB_ENV
-          cd ..
-          
-          # Wait for app to be ready (increased timeout for CI)
+          echo "COVERAGE_SESSION_ID=hrmgmt-${{ github.run_id }}" >> $GITHUB_ENV
+
+          dotnet-coverage collect \
+            --output ${{ github.workspace }}/coverage/app-coverage.cobertura.xml \
+            --output-format cobertura \
+            --session-id "hrmgmt-${{ github.run_id }}" \
+            dotnet run \
+              --project HRMgmt/HRMgmt.csproj \
+              --no-build \
+              --configuration Debug \
+              --urls http://127.0.0.1:5175 \
+            > ${{ github.workspace }}/app.log 2>&1 &
+
+          echo "Coverage collector started (session: hrmgmt-${{ github.run_id }})"
+
+          # Wait for application to be ready
           echo "Waiting for application to start..."
           for i in {1..90}; do
             if curl -fsS http://127.0.0.1:5175/ > /dev/null 2>&1; then
-              echo "Application is ready after $i seconds"
+              echo "Application is ready after ${i}s"
               exit 0
             fi
             sleep 1
           done
           echo "Application failed to start"
-          cat app.log
+          cat ${{ github.workspace }}/app.log
           exit 1
-
-      - name: Create test results directory
-        run: mkdir -p ${{ github.workspace }}/test-results
 
       - name: Run Selenium tests
         env:
@@ -86,6 +110,41 @@ jobs:
             --logger "trx;LogFileName=test-results.trx" \
             --results-directory ${{ github.workspace }}/test-results
 
+      - name: Shutdown app and flush coverage
+        if: always()
+        run: |
+          echo "Shutting down coverage session: $COVERAGE_SESSION_ID"
+          dotnet-coverage shutdown "$COVERAGE_SESSION_ID" 2>/dev/null || true
+          sleep 3
+          COVERAGE_FILE="${{ github.workspace }}/coverage/app-coverage.cobertura.xml"
+          if [[ -f "$COVERAGE_FILE" ]]; then
+            echo "Coverage file produced: $(wc -c < "$COVERAGE_FILE") bytes"
+          else
+            echo "WARNING: Coverage file not found at $COVERAGE_FILE"
+          fi
+
+      - name: Generate HTML coverage report
+        if: always()
+        run: |
+          COVERAGE_FILE="${{ github.workspace }}/coverage/app-coverage.cobertura.xml"
+          if [[ ! -f "$COVERAGE_FILE" ]]; then
+            echo "No coverage file found; skipping report generation."
+            exit 0
+          fi
+
+          reportgenerator \
+            -reports:"$COVERAGE_FILE" \
+            -targetdir:"${{ github.workspace }}/coverage-html" \
+            -reporttypes:"Html;HtmlSummary;Badges" \
+            -sourcedirs:"${{ github.workspace }}/HRMgmt" \
+            -historydir:"${{ github.workspace }}/coverage-history" \
+            -assemblyfilters:"+HRMgmt" \
+            -classfilters:"-HRMgmt.Migrations.*;-HRMgmt.Program;-HRMgmt.OrgDbContext" \
+            -title:"HRMgmt Selenium Coverage" \
+            -tag:"ci-${{ github.run_id }}-${{ github.run_number }}"
+
+          echo "Report generated: ${{ github.workspace }}/coverage-html/index.html"
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,11 +155,21 @@ jobs:
             ${{ github.workspace }}/app.log
           retention-days: 7
 
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            ${{ github.workspace }}/coverage-html/
+            ${{ github.workspace }}/coverage/app-coverage.cobertura.xml
+          retention-days: 30
+
       - name: Print app log on failure
         if: failure()
         run: |
           echo "=== Application Log ==="
-          cat app.log
+          cat ${{ github.workspace }}/app.log || true
           echo ""
           echo "=== Test Results ==="
           cat ${{ github.workspace }}/test-results/*.trx 2>/dev/null || echo "No TRX files found"
