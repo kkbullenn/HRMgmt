@@ -136,6 +136,36 @@ public class EmployeeShiftPage : BasePage
         });
     }
 
+    private static bool IsInteractable(IWebElement element)
+    {
+        return element.Displayed && element.Enabled && element.Size.Height > 0 && element.Size.Width > 0;
+    }
+
+    private IWebElement WaitForClickableEventInCell(string dateStr, int timeoutSec = 5)
+    {
+        var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(timeoutSec));
+        return wait.Until(d =>
+        {
+            try
+            {
+                var cell = d.FindElement(By.CssSelector($"td[data-date='{dateStr}']"));
+                var candidates = cell.FindElements(By.CssSelector(".fc-daygrid-event, a.fc-event, .fc-event"));
+                var clickable = candidates.FirstOrDefault(IsInteractable);
+                if (clickable != null)
+                {
+                    return clickable;
+                }
+
+                var harness = cell.FindElements(By.CssSelector(".fc-daygrid-event-harness")).FirstOrDefault(IsInteractable);
+                return harness != null ? harness : null;
+            }
+            catch (NoSuchElementException)
+            {
+                return null;
+            }
+        });
+    }
+
     public bool HasShiftOnDate(string dateStr)
     {
         var events = WaitForEventsInCell(dateStr);
@@ -150,7 +180,7 @@ public class EmployeeShiftPage : BasePage
 
     public void ClickShiftOnDate(string dateStr)
     {
-        var evt = WaitForEventInCell(dateStr); // will throw WebDriverTimeoutException if not found
+        var evt = WaitForClickableEventInCell(dateStr);
         ClickElement(evt);
         Thread.Sleep(300); // Wait for confirm dialog
     }
