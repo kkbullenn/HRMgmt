@@ -183,6 +183,7 @@
         <button type="button" id="deleteTemplateBtn" class="btn btn-outline-danger ms-auto" style="position:relative; right:-50px;" disabled>Delete Template</button>
     </div>
 </div>
+</div>
 
 <script src="~/js/shift-colors.js" asp-append-version="true"></script>
 <script>
@@ -568,6 +569,9 @@
         }
         e.preventDefault();
 
+        // Capture the form element synchronously so we don't rely on e.currentTarget after async awaits
+        const formEl = e.currentTarget || e.target || document.getElementById('mainForm');
+
         persistActiveGrid();
         syncWeekControls();
         const payload = buildWeeksPayloadForSubmit();
@@ -621,7 +625,14 @@
         }
 
         isProgrammaticSubmit = true;
-        e.currentTarget.submit();
+        // Use the captured form element (or fallback to querying by id) to submit, avoiding e.currentTarget after awaits
+        const toSubmit = formEl || document.getElementById('mainForm');
+        if (toSubmit && typeof toSubmit.submit === 'function') {
+            toSubmit.submit();
+        } else if (document.getElementById('mainForm')) {
+            // final fallback
+            document.getElementById('mainForm').submit();
+        }
     });
     syncWeekControls();
     updateTemplateModeTitle();

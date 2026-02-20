@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenQA.Selenium;
@@ -9,7 +10,7 @@ public class ShiftAssignmentPage : BasePage
 {
     private const string PagePath = "/Shift/ShiftAssignment";
 
-    private IWebElement TemplateNameInput => _wait.Until(d => d.FindElement(By.Id("templateNameInput")));
+    private IWebElement TemplateNameInput => _wait.Until(d => d.FindElement(By.Name("templateName")));
     private IWebElement WeekTypeSelect => _wait.Until(d => d.FindElement(By.Id("weekTypeInput")));
     private IWebElement WeekIndexSelect => _wait.Until(d => d.FindElement(By.Id("weekIndexInput")));
     private IWebElement AssignmentStartInput => _wait.Until(d => d.FindElement(By.Id("assignStart")));
@@ -25,9 +26,9 @@ public class ShiftAssignmentPage : BasePage
     {
     }
 
-    public void GoTo(string baseUrl)
+    public void GoTo(string? baseUrl = null)
     {
-        var trimmedBase = (baseUrl ?? string.Empty).TrimEnd('/');
+        var trimmedBase = (baseUrl ?? BaseUrl).TrimEnd('/');
         _driver.Navigate().GoToUrl($"{trimmedBase}{PagePath}");
         WaitForPage();
     }
@@ -96,16 +97,25 @@ public class ShiftAssignmentPage : BasePage
     public void ClickSaveTemplate()
     {
         ClickElement(SaveTemplateButton);
+        System.Threading.Thread.Sleep(1000); // Wait for save operation
     }
 
     public void ClickGenerateSchedule()
     {
         ClickElement(AutoAssignButton);
+        System.Threading.Thread.Sleep(1000); // Wait for generation
     }
 
     public void ClickDeleteTemplate()
     {
         ClickElement(DeleteTemplateButton);
+        // Wait for confirmation alert and accept to confirm deletion
+        var deleteAlert = _wait.Until(d => d.SwitchTo().Alert());
+        deleteAlert.Accept();
+        System.Threading.Thread.Sleep(500); // Wait for deletion to complete
+
+        var deleteAcceptAlert = _wait.Until(d => d.SwitchTo().Alert());
+        deleteAcceptAlert.Accept();
     }
 
     public void ClickClearGrid()
@@ -118,13 +128,34 @@ public class ShiftAssignmentPage : BasePage
         var item = _wait.Until(d =>
             d.FindElement(By.XPath($"//ul[@id='templateMenu']/li[normalize-space()='{templateName}']")));
         ClickElement(item);
+
+        // Wait for template to become active after loading
+        _wait.Until(d =>
+        {
+            var element =
+                d.FindElement(By.XPath($"//ul[@id='templateMenu']/li[normalize-space()='{templateName}']"));
+            return element.GetAttribute("class").Contains("active");
+        });
+
+        System.Threading.Thread.Sleep(500); // Wait for template data to fully load
+    }
+
+    public void WaitForTemplateToLoad(string templateName)
+    {
+        // Wait for template list item to have "active" class
+        _wait.Until(d =>
+        {
+            var element =
+                d.FindElement(By.XPath($"//ul[@id='templateMenu']/li[normalize-space()='{templateName}']"));
+            return element.GetAttribute("class").Contains("active");
+        });
     }
 
     public IReadOnlyList<string> GetTemplateNames()
     {
         var items = _driver.FindElements(By.CssSelector("#templateMenu li"));
         return items
-            .Select(item => item.Text.Trim())
+            .Select(item => (item.Text ?? string.Empty).Trim())
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .ToList();
     }
@@ -157,8 +188,14 @@ public class ShiftAssignmentPage : BasePage
 
     public string GetSuccessAlertText()
     {
-        var alerts = _driver.FindElements(By.CssSelector(".alert.alert-success"));
-        return alerts.FirstOrDefault()?.Text.Trim() ?? string.Empty;
+        var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
+        var alert = wait.Until(d =>
+        {
+            var elem = d.FindElements(By.CssSelector(".alert.alert-success")).FirstOrDefault();
+            return !string.IsNullOrWhiteSpace(elem?.Text) ? elem : null;
+        });
+
+        return alert.Text.Trim();
     }
 
     public string GetErrorAlertText()
@@ -241,8 +278,12 @@ public class ShiftAssignmentPage : BasePage
 
     public string GetShiftCellValue(int rowIndex, int columnIndex)
     {
-        var select = new SelectElement(GetShiftCell(rowIndex, columnIndex));
-        return select.SelectedOption?.GetAttribute("value") ?? string.Empty;
+        var dropdown = GetShiftCell(rowIndex, columnIndex);
+        _wait.Until(d => dropdown.Displayed);
+
+        var select = new SelectElement(dropdown);
+        var value = select.SelectedOption?.GetAttribute("value") ?? string.Empty;
+        return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
     public void ApplyBatchShiftForColumn(int columnIndex, string shiftId)
@@ -272,5 +313,14 @@ public class ShiftAssignmentPage : BasePage
     {
         return _wait.Until(d =>
             d.FindElement(By.XPath($"//select[@id='batchShift-{columnIndex}']/following-sibling::button")));
+    }
+
+    public string WaitForBrowserAlertText(int timeoutSeconds = 40)
+    {
+        var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(timeoutSeconds));
+        var alert = wait.Until(d => d.SwitchTo().Alert());
+        var text = alert.Text ?? string.Empty;
+        alert.Accept();
+        return text.Trim();
     }
 }
