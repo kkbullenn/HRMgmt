@@ -157,6 +157,12 @@ coverage*.info
 *.coverage
 *.coveragexml
 
+# dotnet-coverage + ReportGenerator output directories
+coverage/
+coverage-html/
+coverage-history/
+coverage-results/
+
 # NCrunch
 _NCrunch_*
 .*crunch*.local.xml
