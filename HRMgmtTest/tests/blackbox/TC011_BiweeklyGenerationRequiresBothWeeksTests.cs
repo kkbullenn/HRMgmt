@@ -8,12 +8,34 @@ namespace HRMgmtTest.tests.blackbox;
 public class TC011_BiweeklyGenerationRequiresBothWeeksTests : BlackboxTestBase
 {
     private ShiftAssignmentPage _shiftPage = null!;
+    private string? _createdTemplateName;
 
     [SetUp]
     public override void SetUp()
     {
         base.SetUp();
         _shiftPage = new ShiftAssignmentPage(Driver);
+        _createdTemplateName = null;
+    }
+
+    [TearDown]
+    public override void TearDown()
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(_createdTemplateName))
+            {
+                _shiftPage.GoTo(BaseUrl);
+                _shiftPage.SelectTemplateFromMenu(_createdTemplateName);
+                _shiftPage.ClickDeleteTemplate();
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup. Ignore if template is already removed or UI state changed.
+        }
+
+        base.TearDown();
     }
 
     [Test]
@@ -25,6 +47,7 @@ public class TC011_BiweeklyGenerationRequiresBothWeeksTests : BlackboxTestBase
         _shiftPage.ClickCreateNewTemplate();
 
         var templateName = $"WK_TC011_{DateTime.UtcNow:yyyyMMddHHmmssfff}_{Guid.NewGuid():N}".Substring(0, 32);
+        _createdTemplateName = templateName;
         _shiftPage.SetTemplateName(templateName);
         _shiftPage.SetWeekType("2"); // Biweekly
         _shiftPage.SetWeekIndex("0"); // Week 1
