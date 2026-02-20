@@ -190,22 +190,85 @@ public class EmployeeShiftPage : BasePage
             var js = (IJavaScriptExecutor)_driver;
             js.ExecuteScript("arguments[0].click();", evt);
         }
-        Thread.Sleep(300); // Wait for confirm dialog
+        Thread.Sleep(500); // Increased wait for confirm dialog in CI
     }
 
+    /// <summary>
+    /// Deletes a shift assignment on the specified date.
+    /// Handles the confirm/result alerts robustly for CI environments.
+    /// </summary>
     public void DeleteShiftOnDate(string dateStr)
     {
+        // First verify shift exists
+        if (!HasShiftOnDate(dateStr))
+        {
+            throw new InvalidOperationException($"No shift found on date {dateStr} to delete");
+        }
+
         ClickShiftOnDate(dateStr);
 
-        // Confirm alert may be delayed in CI; handle gracefully.
-        var confirmAlert = TryWaitForAlert(TimeSpan.FromSeconds(3));
-        confirmAlert?.Accept();
+        // In CI/headless mode, alerts may appear with delay
+        // Handle confirm alert ("Delete this shift assignment?")
+        var confirmResult = TryAcceptAlert(TimeSpan.FromSeconds(5));
+        
+        if (!confirmResult.wasPresent)
+        {
+            // No confirm alert - maybe the click didn't register properly
+            // Try clicking again with JavaScript
+            try
+            {
+                var evt = WaitForClickableEventInCell(dateStr, timeoutSec: 3);
+                var js = (IJavaScriptExecutor)_driver;
+                js.ExecuteScript("arguments[0].click();", evt);
+                Thread.Sleep(500);
+                TryAcceptAlert(TimeSpan.FromSeconds(5));
+            }
+            catch
+            {
+                // Ignore - shift may already be deleted or click handled differently
+            }
+        }
 
-        // Success/failure alert may follow asynchronously; accept when present.
-        var resultAlert = TryWaitForAlert(TimeSpan.FromSeconds(5));
-        resultAlert?.Accept();
+        // Handle success/failure result alert
+        TryAcceptAlert(TimeSpan.FromSeconds(5));
 
-        Thread.Sleep(700); // Wait for deletion/calendar refresh
+        // Wait for calendar to refresh and shift to be removed
+        Thread.Sleep(1000);
+
+        // Verify deletion by checking DOM is updated
+        var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(5));
+        try
+        {
+            wait.Until(_ => !HasShiftOnDate(dateStr));
+        }
+        catch (WebDriverTimeoutException)
+        {
+            // Shift still showing - this will be caught by test assertion
+            System.Diagnostics.Debug.WriteLine($"Warning: Shift on {dateStr} still visible after delete attempt");
+        }
+    }
+
+    /// <summary>
+    /// Attempts to accept an alert, returning info about whether it was present.
+    /// </summary>
+    private (bool wasPresent, string text) TryAcceptAlert(TimeSpan timeout)
+    {
+        try
+        {
+            var wait = new WebDriverWait(_driver, timeout);
+            var alert = wait.Until(d => d.SwitchTo().Alert());
+            var text = alert.Text ?? string.Empty;
+            alert.Accept();
+            return (true, text);
+        }
+        catch (WebDriverTimeoutException)
+        {
+            return (false, string.Empty);
+        }
+        catch (NoAlertPresentException)
+        {
+            return (false, string.Empty);
+        }
     }
 
     public string GetAlertText()
@@ -248,23 +311,6 @@ public class EmployeeShiftPage : BasePage
         var alert = _wait.Until(d => d.SwitchTo().Alert());
         alert.Dismiss();
         Thread.Sleep(300);
-    }
-
-    private IAlert? TryWaitForAlert(TimeSpan timeout)
-    {
-        try
-        {
-            var wait = new WebDriverWait(_driver, timeout);
-            return wait.Until(d => d.SwitchTo().Alert());
-        }
-        catch (WebDriverTimeoutException)
-        {
-            return null;
-        }
-        catch (NoAlertPresentException)
-        {
-            return null;
-        }
     }
 
     public void NavigateToNextMonth()
