@@ -2,6 +2,13 @@
 
 This report follows the testcase template format and reflects the current codebase/local-db run.
 
+## Latest Execution
+- Command: `dotnet test HRMgmtTest --filter "Name~TC001|Name~TC009|Name~TC010|Name~TC011|Name~TC015" -v minimal`
+- Total: 6
+- Passed: 6
+- Failed: 0
+- Skipped: 0
+
 ## Common Local Baseline
 - DB: Local SQLite with `TEST_MODE=true`
 - Seeder: `HRMgmt/SeedData/QaSeeder.cs`
@@ -64,7 +71,7 @@ This report follows the testcase template format and reflects the current codeba
   - Scenario 2: Save is blocked by validation signal (alert or error), no false success
   - Template count does not change in either scenario
 - Actual Results: PASS. Both scenarios behaved as expected; template count remained unchanged.
-- Notes: Updated from old “Save disabled” assumption to current implementation behavior.
+- Notes: Updated from old "Save disabled" assumption to current implementation behavior. Test now handles expected browser alert safely in empty-save scenario.
 - Status: DONE
 
 ## TC-010
@@ -115,7 +122,7 @@ This report follows the testcase template format and reflects the current codeba
 - Input Data: Week 1 populated, Week 2 empty.
 - Expected Results: Generation blocked with message requiring both Week 1 and Week 2; no new assignments created.
 - Actual Results: PASS. Blocking message shown and employee assignment count remained unchanged.
-- Notes: Test re-establishes biweekly state after save refresh.
+- Notes: Test re-establishes biweekly state after save refresh and auto-deletes temporary `WK_TC011_*` template in teardown to avoid template-list clutter.
 - Status: DONE
 
 ## TC-015
