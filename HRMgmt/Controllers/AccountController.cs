@@ -88,11 +88,17 @@ namespace HRMgmt.Controllers
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(claimsIdentity),
                 authProperties);
-
+            
+            var (fName, lName) = BuildName(account.DisplayName, account.Username);
+            var userProfile = await _context.Users.FirstOrDefaultAsync(u => 
+                u.FirstName == fName && u.LastName == lName);
+            var firstName = userProfile?.FirstName ?? account.DisplayName ?? account.Username;
+            
             // Keep session logic temporarily for backward compatibility with un-updated controllers
             HttpContext.Session.SetString("UserRole", account.Role);
             HttpContext.Session.SetString("UserName", account.DisplayName ?? account.Username);
             HttpContext.Session.SetString("UserId", account.Id.ToString());
+            HttpContext.Session.SetString("UserFirstName", firstName);
 
             // Redirect automatically based on the role found in the database
             if (string.Equals(account.Role, "Employee", StringComparison.OrdinalIgnoreCase))

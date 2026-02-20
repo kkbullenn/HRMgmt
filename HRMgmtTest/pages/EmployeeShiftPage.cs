@@ -136,6 +136,36 @@ public class EmployeeShiftPage : BasePage
         });
     }
 
+    private static bool IsInteractable(IWebElement element)
+    {
+        return element.Displayed && element.Enabled && element.Size.Height > 0 && element.Size.Width > 0;
+    }
+
+    private IWebElement WaitForClickableEventInCell(string dateStr, int timeoutSec = 5)
+    {
+        var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(timeoutSec));
+        return wait.Until(d =>
+        {
+            try
+            {
+                var cell = d.FindElement(By.CssSelector($"td[data-date='{dateStr}']"));
+                var candidates = cell.FindElements(By.CssSelector(".fc-daygrid-event, a.fc-event, .fc-event"));
+                var clickable = candidates.FirstOrDefault(IsInteractable);
+                if (clickable != null)
+                {
+                    return clickable;
+                }
+
+                var harness = cell.FindElements(By.CssSelector(".fc-daygrid-event-harness")).FirstOrDefault(IsInteractable);
+                return harness != null ? harness : null;
+            }
+            catch (NoSuchElementException)
+            {
+                return null;
+            }
+        });
+    }
+
     public bool HasShiftOnDate(string dateStr)
     {
         var events = WaitForEventsInCell(dateStr);
@@ -150,20 +180,95 @@ public class EmployeeShiftPage : BasePage
 
     public void ClickShiftOnDate(string dateStr)
     {
-        var evt = WaitForEventInCell(dateStr); // will throw WebDriverTimeoutException if not found
-        ClickElement(evt);
-        Thread.Sleep(300); // Wait for confirm dialog
+        var evt = WaitForClickableEventInCell(dateStr);
+        try
+        {
+            ClickElement(evt);
+        }
+        catch
+        {
+            var js = (IJavaScriptExecutor)_driver;
+            js.ExecuteScript("arguments[0].click();", evt);
+        }
+        Thread.Sleep(500); // Increased wait for confirm dialog in CI
     }
 
+    /// <summary>
+    /// Deletes a shift assignment on the specified date.
+    /// Handles the confirm/result alerts robustly for CI environments.
+    /// </summary>
     public void DeleteShiftOnDate(string dateStr)
     {
+        // First verify shift exists
+        if (!HasShiftOnDate(dateStr))
+        {
+            throw new InvalidOperationException($"No shift found on date {dateStr} to delete");
+        }
+
         ClickShiftOnDate(dateStr);
 
-        // Accept the confirmation dialog
-        var alert = _wait.Until(d => d.SwitchTo().Alert());
-        alert.Accept();
+        // In CI/headless mode, alerts may appear with delay
+        // Handle confirm alert ("Delete this shift assignment?")
+        var confirmResult = TryAcceptAlert(TimeSpan.FromSeconds(5));
+        
+        if (!confirmResult.wasPresent)
+        {
+            // No confirm alert - maybe the click didn't register properly
+            // Try clicking again with JavaScript
+            try
+            {
+                var evt = WaitForClickableEventInCell(dateStr, timeoutSec: 3);
+                var js = (IJavaScriptExecutor)_driver;
+                js.ExecuteScript("arguments[0].click();", evt);
+                Thread.Sleep(500);
+                TryAcceptAlert(TimeSpan.FromSeconds(5));
+            }
+            catch
+            {
+                // Ignore - shift may already be deleted or click handled differently
+            }
+        }
 
-        Thread.Sleep(500); // Wait for deletion to complete
+        // Handle success/failure result alert
+        TryAcceptAlert(TimeSpan.FromSeconds(5));
+
+        // Wait for calendar to refresh and shift to be removed
+        Thread.Sleep(1000);
+
+        // Verify deletion by checking DOM is updated
+        var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(5));
+        try
+        {
+            wait.Until(_ => !HasShiftOnDate(dateStr));
+        }
+        catch (WebDriverTimeoutException)
+        {
+            // Shift still showing - this will be caught by test assertion
+            System.Diagnostics.Debug.WriteLine($"Warning: Shift on {dateStr} still visible after delete attempt");
+        }
+    }
+
+    /// <summary>
+    /// Attempts to accept an alert, returning info about whether it was present.
+    /// </summary>
+    private (bool wasPresent, string text) TryAcceptAlert(TimeSpan timeout)
+    {
+        try
+        {
+            var wait = new WebDriverWait(_driver, timeout);
+            var alert = wait.Until(d => d.SwitchTo().Alert());
+            var text = alert.Text ?? string.Empty;
+            alert.Accept();
+            return (true, text);
+        }
+        catch (WebDriverTimeoutException)
+        {
+            return (false, string.Empty);
+        }
+        catch (NoAlertPresentException)
+        {
+            return (false, string.Empty);
+        }
     }
 
     public string GetAlertText()

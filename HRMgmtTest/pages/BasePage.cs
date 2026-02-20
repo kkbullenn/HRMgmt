@@ -44,5 +44,11 @@ public class BasePage
             js.ExecuteScript("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});", element);
             js.ExecuteScript("arguments[0].click();", element);
         }
+        catch (ElementNotInteractableException)
+        {
+            var js = (IJavaScriptExecutor)_driver;
+            js.ExecuteScript("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});", element);
+            js.ExecuteScript("arguments[0].click();", element);
+        }
     }
 }
