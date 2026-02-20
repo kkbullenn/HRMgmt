@@ -57,14 +57,12 @@
                 {
                     <div class="user-pill">
                         <span class="user-pill-name">Hello, @User.Identity.Name!</span>
+                        @* Styled via .user-pill-link in site.css *@
                         <a class="user-pill-link" asp-controller="Account" asp-action="Logout">Logout</a>
                     </div>
                 }
-                else
-                {
-                    @* No login button in header when logged out *@
-                }
             </div>
+
         </header>
 
         <main class="page">
