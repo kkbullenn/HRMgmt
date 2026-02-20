@@ -23,20 +23,21 @@
 }
 
 <link rel="stylesheet" href="/css/assigngrid-menu.css" />
-<div class="assigngrid-layout">
-    <div class="assigngrid-menu">
-        <h4>Template List</h4>
-        <ul class="assigngrid-menu-list" id="templateMenu">
-            @foreach (var name in templates)
-            {
-                <li title="@name" onclick="loadTemplate('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(name))')">@name</li>
-            }
-        </ul>
-        <div style="padding: 16px 24px 0 24px;">
-            <a href="#" onclick="createNewTemplate();return false;" style="color:#007bff; font-weight:bold;">+ Create new template</a>
+<div class="shift-assignment-page">
+    <div class="assigngrid-layout">
+        <div class="assigngrid-menu">
+            <h4>Template List</h4>
+            <ul class="assigngrid-menu-list" id="templateMenu">
+                @foreach (var name in templates)
+                {
+                    <li title="@name" onclick="loadTemplate('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(name))')">@name</li>
+                }
+            </ul>
+            <div style="padding: 16px 24px 0 24px;">
+                <a href="#" onclick="createNewTemplate();return false;" style="color:#007bff; font-weight:bold;">+ Create new template</a>
+            </div>
         </div>
-    </div>
-    <div class="assigngrid-main">
+        <div class="assigngrid-main">
     <style>
         .floating-feedback {
             position: fixed;
@@ -115,7 +116,8 @@
             <input type="hidden" name="allWeeksGridJson" id="allWeeksGridJson" value="" />
         </div>
 
-        <table class="table table-bordered" id="shiftTable">
+        <div class="shift-table-container">
+            <table class="table table-bordered" id="shiftTable" width="100%">
             <thead>
                 <tr>
                     <th colspan="9" class="text-center bg-light" id="gridWeekHeader" style="font-size:1.8rem;font-weight:700;letter-spacing:0.2px;">Week 1</th>
@@ -166,7 +168,8 @@
                     </tr>
                 }
             </tbody>
-        </table>
+            </table>
+        </div>
 
         <button type="submit" id="saveTemplateBtn" class="btn btn-primary">Save</button>
     </form>
@@ -180,7 +183,7 @@
             <input type="date" name="assignEnd" id="assignEnd" class="form-control d-inline-block" style="width:150px;display:inline-block;" />
             <span class="text-muted ms-2">(Leave blank to use default shift range)</span>
         </div>
-        <button type="button" id="deleteTemplateBtn" class="btn btn-outline-danger ms-auto" style="position:relative; right:-50px;" disabled>Delete Template</button>
+        <button type="button" id="deleteTemplateBtn" class="btn btn-outline-danger ms-auto" style="position:relative; right:-5px;" disabled>Delete Template</button>
     </div>
 </div>
 </div>

@@ -8,6 +8,7 @@ on:
   pull_request:
     branches:
       - dev
+      - test-dev
 
 jobs:
   test:
@@ -16,17 +17,22 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-    
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.102'
-      
+
       - name: Restore dependencies
         run: dotnet restore HRMgmt.sln
-        
+
       - name: Build
         run: dotnet build HRMgmt.sln --no-restore --configuration Release
-      
+
+      - name: Start application in background
+        run: |
+          TEST_MODE=true dotnet run --project HRMgmt --configuration Release &
+          sleep 10
+
       - name: Run tests
         run: dotnet test HRMgmt.sln --no-build --configuration Release --verbosity normal

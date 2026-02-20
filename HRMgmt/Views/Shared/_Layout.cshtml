@@ -11,7 +11,7 @@
 </head>
 
 <body>
-    <div class="app-shell">
+    <div class="app-shell @(ViewContext.RouteData.Values["controller"]?.ToString() == "Shift" && ViewContext.RouteData.Values["action"]?.ToString() == "ShiftAssignment" ? "shift-assignment-page" : "")">
 
         <header class="pill-nav">
             @{

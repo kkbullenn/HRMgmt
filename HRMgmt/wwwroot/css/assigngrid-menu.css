@@ -1,3 +1,20 @@
+.shift-assignment-page {
+    width: 100%;
+    max-width: 98vw;
+    margin-left: 8px;
+    margin-right: 0;
+}
+.shift-table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+#shiftTable {
+    min-width: 900px;
+    max-width: 100%;
+    table-layout: auto;
+}
 .assigngrid-layout {
     display: flex;
     flex-direction: row;
