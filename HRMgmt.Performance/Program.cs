@@ -15,7 +15,7 @@ namespace HRMgmt.Performance
         public static void Main(string[] args)
         {
             // Configure Exporters explicitly
-            var config = ManualConfig.Create(DefaultConfig.Instance)
+            var config = DefaultConfig.Instance.WithOptions(ConfigOptions.DisableOptimizationsValidator)
                 .AddExporter(HtmlExporter.Default)
                 .AddExporter(CsvExporter.Default)
                 .AddExporter(MarkdownExporter.GitHub)
