@@ -1,8 +1,4 @@
-<<<<<<< test/aira-security-v1
-﻿{
-=======
 {
->>>>>>> test-dev
   "profiles": {
     "http": {
       "commandName": "Project",
