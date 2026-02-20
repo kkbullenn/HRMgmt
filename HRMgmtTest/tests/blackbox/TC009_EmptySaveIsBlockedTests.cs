@@ -1,7 +1,7 @@
 using HRMgmtTest.pages;
 using OpenQA.Selenium;
 
-namespace HRMgmtTest;
+namespace HRMgmtTest.tests.blackbox;
 
 // TC009 covers two save scenarios:
 //

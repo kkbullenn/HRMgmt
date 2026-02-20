@@ -4,7 +4,7 @@ using OpenQA.Selenium.Support.UI;
 using System.Text.Json;
 using System.Threading;
 
-namespace HRMgmtTest;
+namespace HRMgmtTest.tests.blackbox;
 
 public class TC001_AssignSingleShiftToSingleEmployeeTests : BlackboxTestBase
 {

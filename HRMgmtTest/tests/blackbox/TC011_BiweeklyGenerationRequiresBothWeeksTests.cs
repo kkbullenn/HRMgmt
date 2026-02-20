@@ -3,7 +3,7 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 using System.Text.Json;
 
-namespace HRMgmtTest;
+namespace HRMgmtTest.tests.blackbox;
 
 public class TC011_BiweeklyGenerationRequiresBothWeeksTests : BlackboxTestBase
 {

@@ -1,7 +1,7 @@
 using HRMgmtTest.pages;
 using OpenQA.Selenium;
 
-namespace HRMgmtTest;
+namespace HRMgmtTest.tests.blackbox;
 
 public class TC010_DuplicateTemplateNameRejectedTests : BlackboxTestBase
 {

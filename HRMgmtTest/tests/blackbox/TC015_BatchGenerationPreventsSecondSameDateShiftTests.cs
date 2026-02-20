@@ -3,7 +3,7 @@ using HRMgmtTest.pages;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 
-namespace HRMgmtTest;
+namespace HRMgmtTest.tests.blackbox;
 
 public class TC015_BatchGenerationPreventsSecondSameDateShiftTests : BlackboxTestBase
 {

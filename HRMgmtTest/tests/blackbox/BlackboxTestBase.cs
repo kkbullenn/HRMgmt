@@ -2,7 +2,7 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 
-namespace HRMgmtTest;
+namespace HRMgmtTest.tests.blackbox;
 
 public abstract class BlackboxTestBase
 {
