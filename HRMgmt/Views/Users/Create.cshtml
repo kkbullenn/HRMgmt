@@ -1,84 +1,87 @@
 @model HRMgmt.Models.User
 
 @{
-    ViewData["Title"] = "Create";
+    ViewData["Title"] = "Create User";
 }
 
-<h1>Create</h1>
+<div class="ui-card form-card">
+    <div class="form-card-header">
+        <div>
+            <h1 class="form-card-title">Create User</h1>
+            <div class="form-card-subtitle">Add a new employee and create their login account</div>
+        </div>
 
-<h4>User</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Create" method="post" enctype="multipart/form-data">
-            <div asp-validation-summary="All" class="text-danger"></div>
-            
-            <div class="form-group">
-                <label asp-for="FirstName" class="control-label"></label>
+        <a class="btn btn-outline-secondary" asp-action="Index">Back</a>
+    </div>
+
+    <form asp-action="Create" method="post" enctype="multipart/form-data">
+        <div asp-validation-summary="All" class="text-danger mb-2"></div>
+
+        <div class="form-grid two-col">
+            <div>
+                <label asp-for="FirstName" class="form-label fw-semibold"></label>
                 <input asp-for="FirstName" class="form-control" />
                 <span asp-validation-for="FirstName" class="text-danger"></span>
             </div>
-            
-            <div class="form-group">
-                <label asp-for="LastName" class="control-label"></label>
+
+            <div>
+                <label asp-for="LastName" class="form-label fw-semibold"></label>
                 <input asp-for="LastName" class="form-control" />
                 <span asp-validation-for="LastName" class="text-danger"></span>
             </div>
-            
-            <div class="form-group">
-                <label asp-for="DateOfBirth" class="control-label"></label>
+
+            <div>
+                <label asp-for="DateOfBirth" class="form-label fw-semibold"></label>
                 <input asp-for="DateOfBirth" class="form-control" type="date" />
                 <span asp-validation-for="DateOfBirth" class="text-danger"></span>
             </div>
-            
-            <div class="form-group">
-                <label asp-for="Address" class="control-label"></label>
+
+            <div>
+                <label asp-for="Address" class="form-label fw-semibold"></label>
                 <input asp-for="Address" class="form-control" />
                 <span asp-validation-for="Address" class="text-danger"></span>
-                <small class="form-text text-muted"></small>
             </div>
-            
-            <div class="form-group">
-                <label asp-for="RoleId" class="control-label">Role</label>
+
+            <div>
+                <label asp-for="RoleId" class="form-label fw-semibold">Role</label>
                 <select asp-for="RoleId" class="form-control" asp-items="ViewBag.Role"></select>
                 <span asp-validation-for="RoleId" class="text-danger"></span>
             </div>
-            
-            <div class="form-group">
-                <label class="control-label">Profile Photo</label>
-                <input type="file" name="photoFile" accept="image/*" class="form-control" />
-                <small class="form-text text-muted">Upload a profile picture (optional)</small>
-            </div>
-            
-            <div class="form-group">
-                <label asp-for="HourlyWage" class="control-label"></label>
+
+            <div>
+                <label asp-for="HourlyWage" class="form-label fw-semibold"></label>
                 <input asp-for="HourlyWage" class="form-control" type="number" step="0.01" />
                 <span asp-validation-for="HourlyWage" class="text-danger"></span>
             </div>
-            
-            <div class="form-group">
-                <label class="control-label" for="username">Username</label>
+
+            <div>
+                <label class="form-label fw-semibold">Profile Photo</label>
+                <input type="file" name="photoFile" accept="image/*" class="form-control" />
+                <div class="helper-text mt-1">Optional — default avatar will be used if empty.</div>
+            </div>
+
+            <div>
+                <label class="form-label fw-semibold" for="username">Username</label>
                 <input class="form-control" id="username" name="username" value="@ViewData["EnteredUsername"]" required />
                 <span class="text-danger">@Html.ValidationMessage("Username")</span>
-            </div>
-            
-            <div class="form-group">
-                <label class="control-label" for="password">Password</label>
-                <input class="form-control" id="password" name="password" type="password" required />
-                <span class="text-danger">@Html.ValidationMessage("Password")</span>
-            </div>
-            
-            <div class="form-group">
-                <input type="submit" value="Create" class="btn btn-primary" />
-            </div>
-        </form>
-    </div>
-</div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
+                <div class="mt-3">
+                    <label class="form-label fw-semibold" for="password">Password</label>
+                    <input class="form-control" id="password" name="password" type="password" required />
+                    <span class="text-danger">@Html.ValidationMessage("Password")</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Create User</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Back to List</a>
+        </div>
+    </form>
 </div>
 
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
 }

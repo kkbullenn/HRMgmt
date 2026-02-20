@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  NUnit Test Run Settings for CI environments.
+  Use with: dotnet test -settings HRMgmtTest/test.runsettings
+-->
+<RunSettings>
+  <!-- NUnit adapter settings -->
+  <NUnit>
+    <!-- Run tests sequentially - Selenium tests share browser state -->
+    <NumberOfTestWorkers>1</NumberOfTestWorkers>
+    
+    <!-- Default timeout for each test (5 minutes) -->
+    <DefaultTimeout>300000</DefaultTimeout>
+    
+    <!-- Stop on first failure for faster feedback in CI -->
+    <StopOnError>false</StopOnError>
+    
+    <!-- Show test output in console -->
+    <DefaultTestCaseTimeout>300000</DefaultTestCaseTimeout>
+    
+    <!-- Where clause filters (empty = run all) -->
+    <Where></Where>
+    
+    <!-- Pre-filter based on test categories -->
+    <TestCaseFilter></TestCaseFilter>
+  </NUnit>
+  
+  <!-- Test runtime configuration -->
+  <RunConfiguration>
+    <!-- Maximum time for entire test run (15 minutes) -->
+    <TestSessionTimeout>900000</TestSessionTimeout>
+    
+    <!-- Results directory -->
+    <ResultsDirectory>./TestResults</ResultsDirectory>
+    
+    <!-- Target .NET framework -->
+    <TargetFrameworkVersion>net10.0</TargetFrameworkVersion>
+    
+    <!-- Thread apartment state (STA needed for some UI interactions) -->
+    <ExecutionThreadApartmentState>STA</ExecutionThreadApartmentState>
+    
+    <!-- Disable data collection unless explicitly enabled -->
+    <CollectSourceInformation>false</CollectSourceInformation>
+  </RunConfiguration>
+  
+  <!-- Logger configuration -->
+  <LoggerRunSettings>
+    <Loggers>
+      <Logger friendlyName="trx" enabled="True">
+        <Configuration>
+          <LogFileName>test-results.trx</LogFileName>
+        </Configuration>
+      </Logger>
+      <Logger friendlyName="console" enabled="True">
+        <Configuration>
+          <Verbosity>detailed</Verbosity>
+        </Configuration>
+      </Logger>
+    </Loggers>
+  </LoggerRunSettings>
+</RunSettings>
