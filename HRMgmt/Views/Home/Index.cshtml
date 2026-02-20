@@ -1,6 +1,7 @@
 ﻿@{
     ViewData["Title"] = "Home";
     var userName = Context.Session.GetString("UserName");
+    var userFirstName = Context.Session.GetString("UserFirstName");
 }
 
 <section class="hero-section">
@@ -9,7 +10,7 @@
     {
         <!-- Login status -->
         <div class="welcome-only">
-            <h1>Welcome back, @userName</h1>
+            <h1>Welcome back, @userFirstName</h1>
         </div>
     }
     else

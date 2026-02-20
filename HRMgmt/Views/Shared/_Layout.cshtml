@@ -20,6 +20,8 @@
 
                 var isLandingPage = controllerName == "Home" && actionName == "Index";
                 var isLoginPage = controllerName == "Account" && actionName == "Login";
+                var userFirstName = Context.Session.GetString("UserFirstName");
+
             }
 
             @* Brand only shows on Login page *@
@@ -46,7 +48,6 @@
                         <a class="nav-pill" asp-controller="Users" asp-action="Index">People</a>
                         <a class="nav-pill" asp-controller="Shift" asp-action="EmployeeShift">Schedule</a>
                         <a class="nav-pill" asp-controller="Shift" asp-action="Index">Shifts</a>
-                        <a class="nav-pill" asp-controller="Payroll" asp-action="Index">Payroll</a>
                     }
 
                     @if (User.IsInRole("Admin"))
@@ -60,7 +61,7 @@
                 @if (User.Identity?.IsAuthenticated == true)
                 {
                     <div class="user-pill">
-                        <span class="user-pill-name">Hello, @User.Identity.Name!</span>
+                        <span class="user-pill-name">Hello, @User.Identity.Name.Split(" ")[0]!</span>
                         <a class="user-pill-link" asp-controller="Account" asp-action="Logout">Logout</a>
                     </div>
                 }
