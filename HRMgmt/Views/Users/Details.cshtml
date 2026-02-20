@@ -68,6 +68,14 @@
                 <div class="people-sub">Address</div>
                 <div class="people-name">@Model.Address</div>
             </div>
+            
+            @if (User.IsInRole("Admin"))
+            {
+                <div class="mb-3">
+                    <div class="people-sub">Role</div>
+                    <div class="people-name">@ViewBag.RoleName</div>
+                </div>   
+            }
 
             <div class="mb-3">
                 <div class="people-sub">Hourly Wage</div>

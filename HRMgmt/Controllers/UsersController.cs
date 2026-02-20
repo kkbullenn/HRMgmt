@@ -72,6 +72,10 @@ namespace HRMgmt.Controllers
             {
                 return NotFound();
             }
+            
+            // Only Admin can see roles attached to user
+            var role = await _context.Roles.FindAsync(user.RoleId);
+            ViewBag.RoleName = role?.RoleName ?? "N/A";
 
             return View(user);
         }
