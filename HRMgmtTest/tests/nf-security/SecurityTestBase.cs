@@ -18,9 +18,18 @@ public abstract class SecurityTestBase
         EnsureAppReachableOrIgnore();
 
         var options = new ChromeOptions();
-        if (string.Equals(Environment.GetEnvironmentVariable("HRMGT_HEADLESS"), "1", StringComparison.Ordinal))
+        var isCi = string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase);
+        var forceHeadless = string.Equals(Environment.GetEnvironmentVariable("HRMGT_HEADLESS"), "1", StringComparison.Ordinal);
+
+        if (isCi || forceHeadless)
         {
             options.AddArgument("--headless=new");
+        }
+        if (isCi)
+        {
+            options.AddArgument("--no-sandbox");
+            options.AddArgument("--disable-dev-shm-usage");
         }
         options.AddArgument("--window-size=1600,1000");
         options.AddArgument("--no-first-run");
