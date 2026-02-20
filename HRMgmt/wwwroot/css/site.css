@@ -421,6 +421,31 @@ body {
     color: var(--primary);
     white-space: nowrap;
 }
+/* Custom Blue Create Button for Payroll */
+.btn-create-payroll {
+    background-color: #679BE6; /* Soft Vibrant Blue */
+    color: white !important;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    padding: 10px 24px;
+    font-weight: 700;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    /* Soft Blue Glow to match your purple shadow intensity */
+    box-shadow: 0 8px 20px rgba(103, 155, 230, 0.3);
+    transition: all 0.3s ease;
+}
+
+    .btn-create-payroll:hover {
+        transform: translateY(-2px);
+        background-color: #5589d4; /* Slightly deeper blue on hover */
+        box-shadow: 0 12px 24px rgba(103, 155, 230, 0.45);
+        color: white !important;
+        text-decoration: none;
+    }
+
+
 
 .btn-danger {
     background: linear-gradient(135deg, #ef4444, #dc2626);
