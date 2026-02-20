@@ -2,6 +2,7 @@ using HRMgmt;
 using HRMgmt.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies; // ADDED: Required for Cookie Auth
+using HRMgmt.SeedData;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,7 +63,8 @@ using (var scope = app.Services.CreateScope())
     if (db.Database.IsSqlite())
     {
         db.Database.EnsureCreated();
-        SeedQaTestAccount(db);
+        QaSeeder.Seed(db, app.Environment.ContentRootPath);
+        QaSeeder.SeedQaTestAccount(db);
     }
 }
 
@@ -90,29 +92,3 @@ app.MapControllerRoute(
     .WithStaticAssets();
 
 app.Run();
-
-static void SeedQaTestAccount(OrgDbContext db)
-{
-    const string username = "qa_test";
-    const string password = "123456";
-    const string roleName = "Admin";
-
-    if (!db.Roles.Any(r => r.RoleName == roleName))
-    {
-        db.Roles.Add(new Role { RoleName = roleName });
-        db.SaveChanges();
-    }
-
-    if (!db.Account.Any(a => a.Username == username))
-    {
-        db.Account.Add(new Account
-        {
-            Username = username,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-            Role = roleName,
-            DisplayName = "QA Test",
-            CreatedAt = DateTime.UtcNow
-        });
-        db.SaveChanges();
-    }
-}
