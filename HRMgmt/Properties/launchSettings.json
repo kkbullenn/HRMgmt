@@ -5,7 +5,6 @@
       "launchBrowser": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "TEST_MODE": "true",
         "ConnectionStrings__LocalConnection": "Data Source=hrmgmt.local.db"
       },
       "dotnetRunMessages": true,
@@ -16,7 +15,6 @@
       "launchBrowser": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "TEST_MODE": "true",
         "ConnectionStrings__LocalConnection": "Data Source=hrmgmt.local.db"
       },
       "dotnetRunMessages": true,
