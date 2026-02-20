@@ -102,19 +102,8 @@ namespace HRMgmt.Performance
             var globalStartOnly = DateOnly.FromDateTime(_startDate);
             var globalEndOnly = DateOnly.FromDateTime(_endDate);
 
-            // Cleanup existing (simplified for benchmark)
-            // In real app, we delete overlaps. Here we just assume clean run or let it add.
-            // But to keep it fair/idempotent if run multiple times in same iteration (not possible in benchmark per invoke, but conceptually):
-            // We won't delete here to avoid overhead of delete, we focus on creation.
-            // Actually, benchmark method should probably be clean.
-            // But deleting is part of the cost.
-            
             var added = 0;
             var existingUserDateKeys = new HashSet<string>(); 
-            // In a real run, we read existing from DB.
-            // identifying overlaps is expensive.
-            
-            // Replicating "AutoAssignByTemplate" logic:
             
             foreach (var row in templateRows)
             {
@@ -143,12 +132,6 @@ namespace HRMgmt.Performance
 
                     var userDateKey = $"{row.UserId}_{date:yyyy-MM-dd}";
                     if (existingUserDateKeys.Contains(userDateKey)) continue;
-
-                    // "Check DB for exists" - simplified to local cache for benchmark to focus on logic speed + insert
-                    // In real controller: var exists = _context.ShiftAssignments.Any(...)
-                    // checking DB for every insert is SLOW.
-                    // The controller does: var exists = _context.ShiftAssignments.Any(...)
-                    // This is the bottleneck we want to measure!
                     
                     var exists = _context.ShiftAssignments.Any(sa => sa.UserId == row.UserId && sa.ShiftId == shift.ShiftId && sa.ShiftDate == date);
                     if (exists) continue;
@@ -163,9 +146,6 @@ namespace HRMgmt.Performance
                     added++;
                 }
             }
-            // we don't SaveChanges in the loop in the original code, only at end.
-            // _context.SaveChanges(); // Included in cost?
-            // Controller does SaveChanges.
             _context.SaveChanges();
         }
 

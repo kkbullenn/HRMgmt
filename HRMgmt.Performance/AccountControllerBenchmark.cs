@@ -68,10 +68,6 @@ namespace HRMgmt.Performance
 
             // Mock Session
             _sessionMock = new Mock<ISession>();
-            // Setup SetString to do nothing or store in dictionary if we really cared, but for benchmark ignoring is fine or basic setup
-            // The controller calls SetString.
-            // Setup: void Set(string key, byte[] value);
-            // Extension methods like SetString call Set.
             _sessionMock.Setup(s => s.Set(It.IsAny<string>(), It.IsAny<byte[]>()));
             _sessionMock.Setup(s => s.Remove(It.IsAny<string>()));
             _sessionMock.Setup(s => s.Clear());
@@ -81,11 +77,8 @@ namespace HRMgmt.Performance
             var urlHelperFactoryMock = new Mock<IUrlHelperFactory>();
             var tempDataFactoryMock = new Mock<ITempDataDictionaryFactory>();
 
-            // Setup UrlHelperFactory to return a mock IUrlHelper
-            // (Minimal implementation if needed, otherwise rely on null check or simple mock)
             urlHelperFactoryMock.Setup(x => x.GetUrlHelper(It.IsAny<ActionContext>())).Returns(new Mock<IUrlHelper>().Object);
 
-             // Setup TempDataDictionaryFactory to return a mock ITempDataDictionary
             tempDataFactoryMock.Setup(x => x.GetTempData(It.IsAny<HttpContext>())).Returns(new Mock<ITempDataDictionary>().Object);
 
 
@@ -138,8 +131,6 @@ namespace HRMgmt.Performance
         public async Task EditAccount()
         {
             _context.ChangeTracker.Clear();
-            // Edit the first one repeatedly (in memory db operations are fast enough/isolated per iter usually if we reset, 
-            // but here we just update same record which is fine for measuring update/save cost)
             var acc = await _context.Account.AsNoTracking().FirstAsync();
             var updatedAcc = new Account
             {
