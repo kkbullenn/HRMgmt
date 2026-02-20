@@ -14,7 +14,6 @@ public class TC002_AssignSameShiftToMultipleEmployees
     private LoginPage _loginPage;
     private const string TemplateName = "WK_TC002";
 
-    // Test data - Matches SQL insert statements in testData/test_employees_shifts.sql
     // Employees: E001, E002, E003
     // Shift: D2 (09:00–17:00)
     private const string ShiftD2 = "22222222-2222-2222-2222-000000000002"; // D2 Day (09:00-17:00)
@@ -30,7 +29,7 @@ public class TC002_AssignSameShiftToMultipleEmployees
     [Test]
     public void TC002_AssignSameShiftToMultipleEmployees_Test()
     {
-        // Step 1: Login as Admin (if authentication is implemented)
+        // Step 1: Login as Admin
         _loginPage.GoTo();
         _loginPage.Login("qa_test", "123456");
 
@@ -41,7 +40,6 @@ public class TC002_AssignSameShiftToMultipleEmployees
         _shiftAssignmentPage.SetTemplateName(TemplateName);
 
         // Step 4: Assign shift D2 to E001, E002, E003 on Tuesday (column index 1)
-        // Tuesday is column index 1 (0=Monday, 1=Tuesday, etc.)
         _shiftAssignmentPage.SetShiftCellValue(0, 1, ShiftD2); // E001 on Tuesday
         _shiftAssignmentPage.SetShiftCellValue(1, 1, ShiftD2); // E002 on Tuesday
         _shiftAssignmentPage.SetShiftCellValue(2, 1, ShiftD2); // E003 on Tuesday

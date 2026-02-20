@@ -10,9 +10,17 @@ on:
       - dev
       - test-dev
 
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  TEST_MODE: "true"
+  ASPNETCORE_ENVIRONMENT: Development
+  CI: "true"
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
       - name: Checkout code
@@ -26,13 +34,72 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore HRMgmt.sln
 
-      - name: Build
-        run: dotnet build HRMgmt.sln --no-restore --configuration Release
+      - name: Build solution
+        run: dotnet build HRMgmt.sln --no-restore --configuration Debug
 
-      - name: Start application in background
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Install ChromeDriver
         run: |
-          TEST_MODE=true dotnet run --project HRMgmt --configuration Release &
-          sleep 10
+          CHROME_VERSION=$(google-chrome --version 2>/dev/null || chromium --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1)
+          echo "Chrome version: $CHROME_VERSION"
+          # ChromeDriver is usually pre-installed; verify it's available
+          which chromedriver || echo "ChromeDriver not found in PATH"
 
-      - name: Run tests
-        run: dotnet test HRMgmt.sln --no-build --configuration Release --verbosity normal
+      - name: Start application
+        env:
+          ConnectionStrings__LocalConnection: Data Source=${{ github.workspace }}/HRMgmt/hrmgmt.db
+        run: |
+          cd HRMgmt
+          dotnet run --no-build --configuration Debug --urls http://127.0.0.1:5175 > ../app.log 2>&1 &
+          APP_PID=$!
+          echo "APP_PID=$APP_PID" >> $GITHUB_ENV
+          cd ..
+          
+          # Wait for app to be ready (increased timeout for CI)
+          echo "Waiting for application to start..."
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:5175/ > /dev/null 2>&1; then
+              echo "Application is ready after $i seconds"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Application failed to start"
+          cat app.log
+          exit 1
+
+      - name: Create test results directory
+        run: mkdir -p ${{ github.workspace }}/test-results
+
+      - name: Run Selenium tests
+        env:
+          SELENIUM_SCREENSHOTS_DIR: ${{ github.workspace }}/test-results
+        run: |
+          dotnet test HRMgmtTest/HRMgmtTest.csproj \
+            --no-build \
+            --configuration Debug \
+            --verbosity normal \
+            --settings HRMgmtTest/test.runsettings \
+            --logger "trx;LogFileName=test-results.trx" \
+            --results-directory ${{ github.workspace }}/test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            ${{ github.workspace }}/test-results/
+            ${{ github.workspace }}/app.log
+          retention-days: 7
+
+      - name: Print app log on failure
+        if: failure()
+        run: |
+          echo "=== Application Log ==="
+          cat app.log
+          echo ""
+          echo "=== Test Results ==="
+          cat ${{ github.workspace }}/test-results/*.trx 2>/dev/null || echo "No TRX files found"

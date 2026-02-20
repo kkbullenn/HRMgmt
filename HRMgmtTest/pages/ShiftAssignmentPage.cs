@@ -94,10 +94,51 @@ public class ShiftAssignmentPage : BasePage
         return AssignmentEndInput.GetAttribute("value") ?? string.Empty;
     }
 
-    public void ClickSaveTemplate()
+    /// <summary>
+    /// Clicks Save Template and waits for confirmation.
+    /// </summary>
+    /// <param name="waitForMenu">If true, also waits for the template to appear in the menu.</param>
+    public void ClickSaveTemplate(bool waitForMenu = true)
     {
+        // Get template name before save for menu verification
+        var templateName = GetTemplateName();
+        
         ClickElement(SaveTemplateButton);
-        System.Threading.Thread.Sleep(1000); // Wait for save operation
+        
+        // Wait for success alert which indicates save completed
+        var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(15));
+        try
+        {
+            wait.Until(d =>
+            {
+                var alerts = d.FindElements(By.CssSelector(".alert.alert-success"));
+                return alerts.Any(a => a.Displayed && !string.IsNullOrWhiteSpace(a.Text));
+            });
+        }
+        catch (WebDriverTimeoutException)
+        {
+            // Check if there's an error alert instead
+            var errorAlerts = _driver.FindElements(By.CssSelector(".alert.alert-danger"));
+            var errorText = errorAlerts.FirstOrDefault()?.Text ?? "No error message";
+            throw new Exception($"Save template failed. Error: {errorText}");
+        }
+
+        // Allow DOM updates to settle
+        System.Threading.Thread.Sleep(500);
+
+        // If requested, verify template appears in menu
+        if (waitForMenu && !string.IsNullOrWhiteSpace(templateName))
+        {
+            try
+            {
+                wait.Until(d => FindTemplateMenuItem(d, templateName) != null);
+            }
+            catch (WebDriverTimeoutException)
+            {
+                // Template not in menu after save - this might be OK if menu needs refresh
+                System.Diagnostics.Debug.WriteLine($"Template '{templateName}' not yet visible in menu after save");
+            }
+        }
     }
 
     public void ClickGenerateSchedule()
@@ -123,21 +164,80 @@ public class ShiftAssignmentPage : BasePage
         ClickElement(ClearGridButton);
     }
 
+    /// <summary>
+    /// Selects a template from the left-hand menu by name.
+    /// Includes retry logic with page refresh for CI stability.
+    /// </summary>
     public void SelectTemplateFromMenu(string templateName)
     {
-        var item = _wait.Until(d =>
-            d.FindElement(By.XPath($"//ul[@id='templateMenu']/li[normalize-space()='{templateName}']")));
-        ClickElement(item);
+        var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(15));
+        IWebElement? item = null;
+        const int maxAttempts = 3;
 
-        // Wait for template to become active after loading
-        _wait.Until(d =>
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            var element =
-                d.FindElement(By.XPath($"//ul[@id='templateMenu']/li[normalize-space()='{templateName}']"));
-            return element.GetAttribute("class").Contains("active");
+            try
+            {
+                // Log available templates for debugging
+                var availableTemplates = GetTemplateNames();
+                System.Diagnostics.Debug.WriteLine(
+                    $"[Attempt {attempt}] Looking for template '{templateName}'. Available: [{string.Join(", ", availableTemplates)}]");
+
+                item = wait.Until(d => FindTemplateMenuItem(d, templateName));
+                if (item != null) break;
+            }
+            catch (WebDriverTimeoutException)
+            {
+                if (attempt < maxAttempts)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Template '{templateName}' not found on attempt {attempt}. Refreshing page...");
+                    _driver.Navigate().Refresh();
+                    WaitForPage();
+                    System.Threading.Thread.Sleep(500);
+                }
+                else
+                {
+                    // Final attempt failed - log diagnostics and throw
+                    var available = GetTemplateNames();
+                    throw new WebDriverTimeoutException(
+                        $"Template '{templateName}' not found in menu after {maxAttempts} attempts. " +
+                        $"Available templates: [{string.Join(", ", available)}]");
+                }
+            }
+        }
+
+        if (item == null)
+        {
+            throw new NoSuchElementException($"Template menu item '{templateName}' not found");
+        }
+
+        // Use JavaScript click for reliability in headless mode
+        try
+        {
+            ClickElement(item);
+        }
+        catch
+        {
+            var js = (IJavaScriptExecutor)_driver;
+            js.ExecuteScript("arguments[0].click();", item);
+        }
+
+        // Wait for template to be fully loaded
+        wait.Until(d =>
+        {
+            var activeName = GetActiveTemplateNameFromDriver(d);
+            if (activeName.Equals(templateName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var currentName = d.FindElement(By.Name("templateName")).GetAttribute("value") ?? string.Empty;
+            return currentName.Trim().Equals(templateName, StringComparison.OrdinalIgnoreCase);
         });
 
-        System.Threading.Thread.Sleep(500); // Wait for template data to fully load
+        // Allow any animations/transitions to complete
+        System.Threading.Thread.Sleep(300);
     }
 
     public void WaitForTemplateToLoad(string templateName)
@@ -322,5 +422,18 @@ public class ShiftAssignmentPage : BasePage
         var text = alert.Text ?? string.Empty;
         alert.Accept();
         return text.Trim();
+    }
+
+    private static IWebElement? FindTemplateMenuItem(IWebDriver driver, string templateName)
+    {
+        var items = driver.FindElements(By.CssSelector("#templateMenu li"));
+        return items.FirstOrDefault(li =>
+            (li.Text ?? string.Empty).Trim().Equals(templateName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string GetActiveTemplateNameFromDriver(IWebDriver driver)
+    {
+        var active = driver.FindElements(By.CssSelector("#templateMenu li.active")).FirstOrDefault();
+        return (active?.Text ?? string.Empty).Trim();
     }
 }
