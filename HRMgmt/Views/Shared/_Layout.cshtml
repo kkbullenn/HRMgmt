@@ -33,7 +33,14 @@
             @* Nav only shows when logged in *@
             @if (User.Identity?.IsAuthenticated == true)
             {
+                
                 <nav class="nav-pills">
+                    @if (!isLandingPage)
+                    {
+                        <a asp-controller="Home" asp-action="Index" class="back-pill" title="Back to Home">
+                            ←
+                        </a>
+                    }
                     @if (User.IsInRole("Employee"))
                     {
                         <a class="nav-pill" asp-controller="Users" asp-action="Profile">Profile</a>
