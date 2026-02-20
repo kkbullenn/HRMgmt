@@ -187,3 +187,129 @@ th, td {
   font-size: 3rem;
   font-weight: 700;
 }
+
+/* User area on the right */
+.user-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.85);
+    border: 1px solid rgba(0,0,0,0.06);
+}
+
+.user-pill-name {
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.user-pill-link {
+    color: var(--primary);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+    .user-pill-link:hover {
+        text-decoration: underline;
+    }
+
+/* Footer inside shell */
+.shell-footer {
+    padding: 14px 18px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    margin-top: 10px;
+}
+
+    .shell-footer a {
+        color: var(--primary);
+        text-decoration: none;
+    }
+
+        .shell-footer a:hover {
+            text-decoration: underline;
+        }
+
+/* ================================
+  Crextio App Shell + Pill Nav
+================================ */
+:root {
+    --shell-bg: rgba(255,255,255,0.55);
+    --shell-border: rgba(255,255,255,0.55);
+    --shadow-soft: 0 20px 60px rgba(0,0,0,0.08);
+}
+
+body {
+    background: radial-gradient(circle at 80% 10%, rgba(253, 224, 71, 0.35), transparent 45%), radial-gradient(circle at 15% 35%, rgba(196, 181, 253, 0.35), transparent 50%), var(--bg-soft);
+}
+
+/* Big rounded container */
+.app-shell {
+    max-width: 1200px;
+    margin: 24px auto;
+    padding: 18px;
+    border-radius: 28px;
+    background: var(--shell-bg);
+    border: 1px solid var(--shell-border);
+    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow-soft);
+}
+
+/* Page padding inside shell */
+.page {
+    padding: 18px;
+}
+
+/* Pill nav */
+.pill-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+}
+
+.brand-pill {
+    background: rgba(255,255,255,0.85);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-weight: 800;
+    color: var(--text-dark);
+    text-decoration: none;
+}
+
+.nav-pills {
+    display: flex;
+    gap: 6px;
+    padding: 6px;
+    background: rgba(255,255,255,0.75);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 999px;
+}
+
+.nav-pill {
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-weight: 600;
+    color: var(--text-dark);
+    text-decoration: none;
+    transition: background 0.2s ease;
+}
+
+    .nav-pill:hover {
+        background: rgba(124, 58, 237, 0.08);
+    }
+
+    .nav-pill.active {
+        background: #111827;
+        color: #fff;
+    }
+
+.nav-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
