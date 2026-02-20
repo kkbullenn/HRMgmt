@@ -1,4 +1,4 @@
-name: Build ASP.NET Core MVC App
+name: Build 
 on:
   workflow_dispatch:  
   push:
@@ -20,16 +20,16 @@ jobs:
         dotnet-version: '10.0.102' 
     
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore ./HRMgmt.sln
     
     - name: Build
       run: |
         if [ "${{ github.ref }}" == "refs/heads/main" ]; then
           echo "Building main branch with warnings as errors"
-          dotnet build --configuration Release --no-restore /p:TreatWarningsAsErrors=true
+          dotnet build ./HRMgmt.sln --configuration Release --no-restore /p:TreatWarningsAsErrors=true
         else
           echo "Building with warnings enabled but not blocking"
-          dotnet build --configuration Release --no-restore
+          dotnet build ./HRMgmt.sln --configuration Release --no-restore
         fi
     
     # Optional: Run tests once we have them
@@ -42,7 +42,7 @@ jobs:
     #   fi
     
     - name: Publish
-      run: dotnet publish --configuration Release --no-build --output ./publish
+      run: dotnet publish ./HRMgmt/HRMgmt.csproj --configuration Release --no-build --output ./publish
     
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4

@@ -7,13 +7,14 @@ public class BasePage
 {
     protected readonly IWebDriver _driver;
     protected readonly WebDriverWait _wait;
+    protected static readonly string BaseUrl = "http://localhost:5175";
 
     public BasePage(IWebDriver driver)
     {
         _driver = driver;
         _wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
     }
-    
+
     public void CloseBrowser()
     {
         _driver.Quit();
@@ -38,6 +39,12 @@ public class BasePage
             element.Click();
         }
         catch (ElementClickInterceptedException)
+        {
+            var js = (IJavaScriptExecutor)_driver;
+            js.ExecuteScript("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});", element);
+            js.ExecuteScript("arguments[0].click();", element);
+        }
+        catch (ElementNotInteractableException)
         {
             var js = (IJavaScriptExecutor)_driver;
             js.ExecuteScript("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});", element);

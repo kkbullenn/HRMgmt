@@ -1,10 +1,7 @@
-@{
-    ViewData["Title"] = "Home Page";
-}
-
-@{
+﻿@{
     ViewData["Title"] = "Home";
     var userName = Context.Session.GetString("UserName");
+    var userFirstName = Context.Session.GetString("UserFirstName");
 }
 
 <section class="hero-section">
@@ -13,19 +10,28 @@
     {
         <!-- Login status -->
         <div class="welcome-only">
-            <h1>Welcome back, @userName</h1>
+            <h1>Welcome back, @userFirstName</h1>
         </div>
     }
     else
     {
         <!-- Logout status -->
-        <div class="hero-content">
+        <section class="landing-center">
             <h1>HR Management</h1>
+
             <p>
-                Internal system for managing employee schedules,
-                payroll, and organizational records.
+                Internal system for managing employee schedules, payroll,
+                and organizational records.
             </p>
-        </div>
+
+            <div class="landing-login-row">
+                <a class="btn btn-primary landing-login-btn"
+                   asp-controller="Account"
+                   asp-action="Login">
+                    Login
+                </a>
+            </div>
+        </section>
     }
 
 </section>
