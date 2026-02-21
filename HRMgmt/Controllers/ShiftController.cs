@@ -719,6 +719,7 @@ namespace HRMgmt
 
         [HttpPost]
         [Authorize(Roles = "Admin,HR")]
+        [ValidateAntiForgeryToken]
         public JsonResult AssignShift([FromBody] AssignShiftDto dto)
         {
             try
@@ -764,6 +765,7 @@ namespace HRMgmt
 
         [HttpPost]
         [Authorize(Roles = "Admin,HR")]
+        [ValidateAntiForgeryToken]
         public JsonResult DeleteEmployeeShift([FromBody] DeleteEmployeeShiftDto dto)
         {
             var assignment = _context.ShiftAssignments
