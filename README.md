@@ -15,7 +15,7 @@ This system helps organizations manage core HR processes in one place. It suppor
 * **Framework:** ASP.NET MVC
 * **Language:** C#
 * **IDE:** Visual Studio
-* **Database:** (Configured locally through project settings)
+* **Database:** SQL database hosted online.
 
 ---
 
