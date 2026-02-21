@@ -638,6 +638,7 @@ namespace HRMgmt
 
         [HttpPost]
         [Authorize(Roles = "Admin,HR")]
+        [ValidateAntiForgeryToken]
         public JsonResult DeleteTemplate([FromBody] DeleteTemplateDto dto)
         {
             var templateName = dto?.templateName?.Trim() ?? string.Empty;
