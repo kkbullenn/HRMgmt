@@ -1,0 +1,52 @@
+name: Build 
+on:
+  workflow_dispatch:  
+  push:
+    branches: [ main, dev, test-dev ]
+  pull_request:
+    branches: [ main, dev, test-dev, 'feature/**' ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.102' 
+    
+    - name: Restore dependencies
+      run: dotnet restore ./HRMgmt.sln
+    
+    - name: Build
+      run: |
+        if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+          echo "Building main branch with warnings as errors"
+          dotnet build ./HRMgmt.sln --configuration Release --no-restore /p:TreatWarningsAsErrors=true
+        else
+          echo "Building with warnings enabled but not blocking"
+          dotnet build ./HRMgmt.sln --configuration Release --no-restore
+        fi
+    
+    # Optional: Run tests once we have them
+    # - name: Test
+    #   run: |
+    #    if [ -d "HRMgmntTest" ]; then
+    #     dotnet test HRMgmntTest --configuration Release --no-build --verbosity normal
+    #   else
+
+    #   fi
+    
+    - name: Publish
+      run: dotnet publish ./HRMgmt/HRMgmt.csproj --configuration Release --no-build --output ./publish
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: published-app
+        path: ./publish
+        retention-days: 7

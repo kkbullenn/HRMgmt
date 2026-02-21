@@ -1,0 +1,78 @@
+@model HRMgmt.Models.Shift
+
+@{
+    ViewData["Title"] = "Edit Shift";
+}
+
+<div class="ui-card">
+
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h2 class="form-card-title">Edit Shift</h2>
+            <div class="form-card-subtitle">Update the shift details and date range.</div>
+        </div>
+
+        <span class="ui-badge badge-blue">Update</span>
+    </div>
+
+    <hr />
+
+    <form asp-action="Edit" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="ShiftId" />
+
+        <div class="form-grid">
+
+            <div class="form-field">
+                <label asp-for="Name" class="control-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="RequiredCount" class="control-label">Required Count</label>
+                <input asp-for="RequiredCount" class="form-control" type="number" min="0" />
+                <span asp-validation-for="RequiredCount" class="text-danger"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="StartTime" class="control-label"></label>
+                <input asp-for="StartTime" class="form-control" type="time" />
+                <span asp-validation-for="StartTime" class="text-danger"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="EndTime" class="control-label"></label>
+                <input asp-for="EndTime" class="form-control" type="time" />
+                <span asp-validation-for="EndTime" class="text-danger"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="StartDate" class="control-label">Start Date</label>
+                <input asp-for="StartDate" class="form-control" type="date" />
+                <span asp-validation-for="StartDate" class="text-danger"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="EndDate" class="control-label">End Date</label>
+                <input asp-for="EndDate" class="form-control" type="date" />
+                <span asp-validation-for="EndDate" class="text-danger"></span>
+            </div>
+
+        </div>
+
+        <input type="hidden" asp-for="RecurrenceType" />
+        <input type="hidden" asp-for="RecurrenceDays" value="@(Model?.RecurrenceDays ?? string.Empty)" />
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Back to List</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

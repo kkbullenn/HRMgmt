@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="HRMgmt/HRMgmt.csproj" />
+  <Project Path="HRMgmtTest/HRMgmtTest.csproj" />
+  <Project Path="HRMgmt.Performance/HRMgmt.Performance.csproj" />
+</Solution>

@@ -1,0 +1,788 @@
+@model HRMgmt.ViewModels.EmployeeShiftGridViewModel
+@using HRMgmt.Models
+@{
+    ViewData["Title"] = "Employee Shift Assignment";
+    var daysOfWeek = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
+    var users = (Model?.Users ?? new List<User>()).OrderBy(u => u.UserId).ToList();
+    var shifts = (Model?.Shifts ?? new List<Shift>()).OrderBy(s => s.StartTime).ThenBy(s => s.Name).ToList();
+    var shiftTypes = shifts.Select(s => new
+    {
+        Key = s.ShiftId.ToString(),
+        Name = s.Name,
+        Label = $"{s.Name} ({s.StartTime:hh\\:mm}-{s.EndTime:hh\\:mm})"
+    }).ToList();
+    var shiftIdsJson = System.Text.Json.JsonSerializer.Serialize(shiftTypes.Select(s => s.Key));
+    var templates = (ViewBag.TemplateNames as IEnumerable<string> ?? Enumerable.Empty<string>()).ToList();
+    var templatesJson = System.Text.Json.JsonSerializer.Serialize(templates);
+    var grid = (Model?.Grid ?? new List<string>());
+    var totalCells = users.Count * daysOfWeek.Length;
+    if (grid.Count < totalCells)
+    {
+        grid.AddRange(Enumerable.Repeat(string.Empty, totalCells - grid.Count));
+    }
+}
+
+<link rel="stylesheet" href="/css/assigngrid-menu.css" />
+<div class="shift-assignment-page">
+<div class="assigngrid-layout">
+    <div class="assigngrid-menu">
+        <h4>Template List</h4>
+        <ul class="assigngrid-menu-list" id="templateMenu">
+            @foreach (var name in templates)
+            {
+                <li title="@name" onclick="loadTemplate('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(name))')">@name</li>
+            }
+        </ul>
+        <div style="padding: 16px 24px 0 24px;">
+            <a href="#" onclick="createNewTemplate();return false;" style="color:#007bff; font-weight:bold;">+ Create new template</a>
+        </div>
+    </div>
+    <div class="assigngrid-main">
+        <style>
+        .floating-feedback {
+            position: fixed;
+            top: 72px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            min-width: 320px;
+            max-width: 520px;
+            width: fit-content;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+        <h1 id="templatePageModeTitle">Create Scheduling Templates</h1>
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show floating-feedback" role="alert">
+                @TempData["Error"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show floating-feedback" role="alert">
+                @TempData["Success"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        <form asp-action="SaveShiftTemplate" method="post" id="mainForm">
+            <style>
+            .batch-tools {
+                display: flex;
+                gap: 6px;
+                align-items: center;
+                margin-top: 4px;
+            }
+
+            .batch-select {
+                min-width: 130px;
+                font-size: 0.9rem;
+            }
+
+            .selected-row {
+                background: #f3f0ff !important;
+            }
+
+            .shift-cell {
+                min-width: 70px;
+                height: 32px;
+                border-radius: 4px;
+                text-align: center;
+                font-weight: bold;
+                cursor: pointer;
+            }
+
+        </style>
+
+            <div class="mb-2">
+                <label>Template Name <input type="text" name="templateName" id="templateNameInput" required class="form-control d-inline-block" style="width:200px;display:inline-block;" /></label>
+                <input type="hidden" name="originalTemplateName" id="originalTemplateNameInput" value="" />
+                <label class="ms-3">Week Type
+                    <select id="weekTypeInput" class="form-select d-inline-block" style="width:130px;display:inline-block;">
+                        <option value="1">Weekly</option>
+                        <option value="2">Biweekly</option>
+                    </select>
+                    <input type="hidden" name="weekType" id="weekTypeHidden" value="1" />
+                </label>
+                <label class="ms-3">Week Index
+                    <select id="weekIndexInput" class="form-select d-inline-block" style="width:130px;display:inline-block;">
+                        <option value="0">Week 1</option>
+                        <option value="1">Week 2</option>
+                    </select>
+                    <input type="hidden" name="weekIndex" id="weekIndexHidden" value="0" />
+                </label>
+                <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="clearCurrentWeekGrid()">Clear</button>
+                <input type="hidden" name="allWeeksGridJson" id="allWeeksGridJson" value="" />
+            </div>
+
+            <div class="shift-table-container">
+                <table class="table table-bordered" id="shiftTable" width="100%">
+                    <thead>
+                    <tr>
+                        <th colspan="9" class="text-center bg-light" id="gridWeekHeader" style="font-size:1.8rem;font-weight:700;letter-spacing:0.2px;">Week 1</th>
+                    </tr>
+                    <tr>
+                        <th style="width:40px;"></th>
+                        <th>Employee</th>
+                        @for (int d = 0; d < daysOfWeek.Length; d++)
+                        {
+                            <th>
+                                <div>@daysOfWeek[d]</div>
+                                <div class="batch-tools">
+                                    <select id="batchShift-@d" class="form-select form-select-sm batch-select">
+                                        <option value="">Clear</option>
+                                        @foreach (var s in shiftTypes)
+                                        {
+                                            <option value="@s.Key">@s.Name</option>
+                                        }
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyBatchFromHeader(@d)">Apply</button>
+                                </div>
+                            </th>
+                        }
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @for (int i = 0; i < users.Count; i++)
+                    {
+                        <tr data-row="@i">
+                            <input type="hidden" name="Users[@i].UserId" value="@users[i].UserId" class="user-id-input" />
+                            <td class="checkbox-cell"><input type="checkbox" class="row-select" data-row="@i" /></td>
+                            <td class="emp-name" style="cursor:pointer;">@($"{users[i].FirstName} {users[i].LastName}")</td>
+                            @for (int j = 0; j < daysOfWeek.Length; j++)
+                            {
+                                var idx = i * daysOfWeek.Length + j;
+                                var cellValue = grid[idx];
+                                <td>
+                                    <input type="hidden" name="Grid[@idx]" value="@cellValue" />
+                                    <select class="shift-dropdown shift-cell" data-row="@i" data-col="@j" style="width:100%;height:32px;padding:0 8px;border-radius:4px;font-weight:bold;text-align:center;background:#dee2e6;color:#888;">
+                                        <option value="" selected="@string.IsNullOrEmpty(cellValue)"> </option>
+                                        @foreach (var s in shiftTypes)
+                                        {
+                                            <option value="@s.Key" selected="@(cellValue == s.Key)">@s.Label</option>
+                                        }
+                                    </select>
+                                </td>
+                            }
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+            <button type="submit" id="saveTemplateBtn" class="btn btn-primary">Save</button>
+        </form>
+
+        <button type="button" id="autoAssignBtn" class="btn btn-success" style="margin-top:16px;">Generate Schedule</button>
+        <div class="d-flex align-items-center mb-2" style="width:100%;">
+            <div>
+                <label class="me-2">Assignment Range:</label>
+                <input type="date" name="assignStart" id="assignStart" class="form-control d-inline-block" style="width:150px;display:inline-block;" />
+                <span class="mx-2">to</span>
+                <input type="date" name="assignEnd" id="assignEnd" class="form-control d-inline-block" style="width:150px;display:inline-block;" />
+                <span class="text-muted ms-2">(Leave blank to use default shift range)</span>
+            </div>
+            <button type="button" id="deleteTemplateBtn" class="btn btn-outline-danger ms-auto" style="position:relative; right:-5px;" disabled>Delete Template</button>
+        </div>
+    </div>
+</div>
+</div>
+
+<script src="~/js/shift-colors.js" asp-append-version="true"></script>
+<script>
+    setTimeout(function() {
+        const alertEl = document.querySelector('.alert.alert-success');
+        if (!alertEl) return;
+        if (window.bootstrap && window.bootstrap.Alert) {
+            window.bootstrap.Alert.getOrCreateInstance(alertEl).close();
+        } else {
+            alertEl.style.display = 'none';
+        }
+    }, 3000);
+
+    const shiftIds = @Html.Raw(shiftIdsJson);
+    const existingTemplateNames = @Html.Raw(templatesJson);
+    const existingTemplateNameSet = new Set((existingTemplateNames || []).map(x => String(x).trim().toLowerCase()));
+    const shiftColorMap = ShiftColorUtils.buildMap(shiftIds);
+    const gridCache = {};
+    let activeGridKey = '';
+    let isProgrammaticSubmit = false;
+    let isTemplateEditLocked = false;
+    let templateNameBlurLock = false;
+
+    function updateTemplateModeTitle() {
+        const titleEl = document.getElementById('templatePageModeTitle');
+        if (!titleEl) return;
+        titleEl.textContent = isTemplateEditLocked
+            ? 'Edit Scheduling Templates'
+            : 'Create Scheduling Templates';
+    }
+
+    function updateDropdownColor(dropdown) {
+        const value = dropdown.value;
+        const bg = ShiftColorUtils.getColor(value, shiftColorMap, '#dee2e6');
+        dropdown.style.backgroundColor = bg;
+        dropdown.style.color = value ? '#1f2937' : '#888';
+    }
+
+    function updateActionButtonsState() {
+        const deleteBtn = document.getElementById('deleteTemplateBtn');
+        const templateName = (document.getElementById('templateNameInput')?.value || '').trim();
+        const isDup = isTemplateNameDuplicateForCreate();
+        if (deleteBtn) {
+            deleteBtn.disabled = !isTemplateEditLocked || !templateName;
+        }
+    }
+
+    function isTemplateNameDuplicateForCreate() {
+        const current = (document.getElementById('templateNameInput')?.value || '').trim();
+        const original = (document.getElementById('originalTemplateNameInput')?.value || '').trim();
+        if (!current) return false;
+        if (original) return false; // editing existing template
+        return existingTemplateNameSet.has(current.toLowerCase());
+    }
+
+    function validateTemplateName(showAlert = false) {
+        const isDup = isTemplateNameDuplicateForCreate();
+        if (isDup && showAlert) {
+            alert('Template name already exists. Please choose a different name.');
+        }
+        updateActionButtonsState();
+        return !isDup;
+    }
+
+    function getCurrentWeekState() {
+        const weekType = document.getElementById('weekTypeInput')?.value || '1';
+        const weekIndex = document.getElementById('weekIndexInput')?.value || '0';
+        return { weekType, weekIndex };
+    }
+
+    function buildGridCacheKey(weekType, weekIndex) {
+        return `${weekType}|${weekIndex}`;
+    }
+
+    function captureCurrentGrid() {
+        return Array.from(document.querySelectorAll('.shift-dropdown')).map(sel => sel.value || '');
+    }
+
+    function applyGridValues(values) {
+        const allDropdowns = Array.from(document.querySelectorAll('.shift-dropdown'));
+        allDropdowns.forEach((sel, idx) => {
+            const val = values?.[idx] || '';
+            sel.value = val;
+            const input = sel.parentElement.querySelector('input[type="hidden"]');
+            if (input) input.value = val;
+            updateDropdownColor(sel);
+        });
+        updateActionButtonsState();
+    }
+
+    function clearGrid() {
+        applyGridValues([]);
+    }
+
+    function hasAnyAssignedShift(values) {
+        return (values || []).some(v => !!(v || '').trim());
+    }
+
+    function clearCurrentWeekGrid() {
+        const { weekType, weekIndex } = getCurrentWeekState();
+        const key = buildGridCacheKey(weekType, weekIndex);
+        applyGridValues([]);
+        gridCache[key] = captureCurrentGrid();
+        activeGridKey = key;
+        updateActionButtonsState();
+    }
+
+    function persistActiveGrid() {
+        if (!activeGridKey) return;
+        gridCache[activeGridKey] = captureCurrentGrid();
+    }
+
+    function restoreGridForCurrentSelection(clearIfMissing = true) {
+        const { weekType, weekIndex } = getCurrentWeekState();
+        const nextKey = buildGridCacheKey(weekType, weekIndex);
+        activeGridKey = nextKey;
+
+        if (gridCache[nextKey]) {
+            applyGridValues(gridCache[nextKey]);
+            return;
+        }
+        if (clearIfMissing) {
+            clearGrid();
+        }
+
+        const templateName = (document.getElementById('templateNameInput')?.value || '').trim();
+        if (templateName) {
+            fetchTemplateWeekFromServer(templateName, weekType, weekIndex, true);
+        }
+    }
+
+    async function fetchTemplateWeekFromServer(templateName, weekType, weekIndex, applyIfCurrent = false) {
+        if (!templateName) return null;
+        const url = `/Shift/GetTemplateData?name=${encodeURIComponent(templateName)}&weekType=${encodeURIComponent(weekType)}&weekIndex=${encodeURIComponent(weekIndex)}`;
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const key = buildGridCacheKey(String(data.weekType ?? weekType), String(data.weekIndex ?? weekIndex));
+        const total = document.querySelectorAll('.shift-dropdown').length;
+        const values = new Array(total).fill('');
+        (data.grid || []).forEach((v, i) => {
+            if (i < total) values[i] = v || '';
+        });
+        gridCache[key] = values;
+
+        if (applyIfCurrent) {
+            const current = getCurrentWeekState();
+            if (current.weekType === String(data.weekType) && current.weekIndex === String(data.weekIndex)) {
+                applyGridValues(values);
+            }
+        }
+        return data;
+    }
+
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('shift-dropdown')) {
+            updateDropdownColor(e.target);
+            const input = e.target.parentElement.querySelector('input[type="hidden"]');
+            if (input) input.value = e.target.value;
+            updateActionButtonsState();
+        }
+    });
+
+    function createNewTemplate() {
+        Object.keys(gridCache).forEach(k => delete gridCache[k]);
+        activeGridKey = '';
+        isTemplateEditLocked = false;
+        updateTemplateModeTitle();
+
+        document.getElementById('templateNameInput').value = '';
+        document.getElementById('originalTemplateNameInput').value = '';
+        document.getElementById('weekTypeInput').value = '1';
+        document.getElementById('weekIndexInput').value = '0';
+        syncWeekControls();
+        clearGrid();
+        restoreGridForCurrentSelection();
+
+        document.getElementById('assignStart').value = '';
+        document.getElementById('assignEnd').value = '';
+        document.getElementById('allWeeksGridJson').value = '';
+
+        document.querySelectorAll('[id^="batchShift-"]').forEach(sel => {
+            sel.value = '';
+        });
+        document.querySelectorAll('.row-select').forEach(cb => {
+            cb.checked = false;
+            cb.closest('tr').classList.remove('selected-row');
+        });
+        document.querySelectorAll('.assigngrid-menu-list li').forEach(li => li.classList.remove('active'));
+        updateActionButtonsState();
+    }
+
+    window.loadTemplate = function(name) {
+        persistActiveGrid();
+        createNewTemplate();
+        fetch(`/Shift/GetTemplateData?name=${encodeURIComponent(name)}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('templateNameInput').value = data.templateName || '';
+                document.getElementById('originalTemplateNameInput').value = data.templateName || '';
+                document.getElementById('weekTypeInput').value = data.weekType || '1';
+                document.getElementById('weekIndexInput').value = data.weekIndex || '0';
+                isTemplateEditLocked = true;
+                updateTemplateModeTitle();
+                syncWeekControls();
+
+                for (let i = 0; i < (data.grid || []).length; i++) {
+                    const input = document.querySelector(`input[name='Grid[${i}]']`);
+                    if (input) input.value = data.grid[i] || '';
+                    const sel = document.querySelector(`.shift-dropdown[data-row='${Math.floor(i / 7)}'][data-col='${i % 7}']`);
+                    if (sel) {
+                        sel.value = data.grid[i] || '';
+                        updateDropdownColor(sel);
+                    }
+                }
+
+                persistActiveGrid();
+                restoreGridForCurrentSelection(false);
+
+                if (String(data.weekType) === '2') {
+                    const activeIdx = String(data.weekIndex || '0');
+                    const otherIdx = activeIdx === '0' ? '1' : '0';
+                    fetchTemplateWeekFromServer(name, '2', otherIdx, false);
+                }
+
+                document.querySelectorAll('.assigngrid-menu-list li').forEach(li => {
+                    li.classList.toggle('active', li.textContent === name);
+                });
+                updateActionButtonsState();
+                validateTemplateName();
+            });
+    };
+
+    let dragSelecting = false;
+    let dragMode = null;
+    document.querySelectorAll('.row-select').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            cb.closest('tr').classList.toggle('selected-row', cb.checked);
+        });
+        cb.addEventListener('mousedown', function(e) {
+            if (e.button !== 0) return;
+            dragSelecting = false;
+            const mousemove = function(ev) {
+                if (!dragSelecting && Math.abs(ev.clientY - e.clientY) > 2) {
+                    dragSelecting = true;
+                    dragMode = cb.checked ? 'unselect' : 'select';
+                    cb.checked = dragMode === 'select';
+                    cb.closest('tr').classList.toggle('selected-row', cb.checked);
+                }
+                if (dragSelecting) {
+                    cb.checked = dragMode === 'select';
+                    cb.closest('tr').classList.toggle('selected-row', cb.checked);
+                }
+            };
+            const mouseup = function() {
+                document.removeEventListener('mousemove', mousemove);
+                document.removeEventListener('mouseup', mouseup);
+                dragSelecting = false;
+                dragMode = null;
+            };
+            document.addEventListener('mousemove', mousemove);
+            document.addEventListener('mouseup', mouseup);
+        });
+        cb.addEventListener('mouseenter', function() {
+            if (dragSelecting) {
+                cb.checked = dragMode === 'select';
+                cb.closest('tr').classList.toggle('selected-row', cb.checked);
+            }
+        });
+    });
+
+    document.addEventListener('mouseup', function() {
+        dragSelecting = false;
+        dragMode = null;
+    });
+
+    document.querySelectorAll('.shift-dropdown').forEach(updateDropdownColor);
+
+    window.applyBatchFromHeader = function(col) {
+        const select = document.getElementById('batchShift-' + col);
+        const shiftType = select ? select.value : '';
+        document.querySelectorAll('.row-select:checked').forEach(function(cb) {
+            const row = cb.getAttribute('data-row');
+            const input = document.querySelector('input[name="Grid[' + (row * 7 + col) + ']"]');
+            const sel = document.querySelector('.shift-dropdown[data-row="' + row + '"][data-col="' + col + '"]');
+            if (input) input.value = shiftType;
+            if (sel) {
+                sel.value = shiftType;
+                updateDropdownColor(sel);
+            }
+        });
+    };
+
+    function syncWeekControls() {
+        const weekTypeInput = document.getElementById('weekTypeInput');
+        const weekTypeHidden = document.getElementById('weekTypeHidden');
+        const weekIndexInput = document.getElementById('weekIndexInput');
+        const weekIndexHidden = document.getElementById('weekIndexHidden');
+        const gridWeekHeader = document.getElementById('gridWeekHeader');
+        if (!weekTypeInput || !weekTypeHidden || !weekIndexInput || !weekIndexHidden) return;
+
+        const isBiweekly = weekTypeInput.value === '2';
+        if (isTemplateEditLocked) {
+            weekTypeInput.disabled = true;
+            weekIndexInput.disabled = !isBiweekly;
+        } else {
+            weekTypeInput.disabled = false;
+            weekIndexInput.disabled = !isBiweekly;
+        }
+
+        if (!isBiweekly) {
+            weekIndexInput.value = '0';
+        }
+        if (gridWeekHeader) {
+            gridWeekHeader.textContent = weekIndexInput.value === '1' ? 'Week 2' : 'Week 1';
+        }
+        weekTypeHidden.value = weekTypeInput.value;
+        weekIndexHidden.value = weekIndexInput.value;
+    }
+
+    function buildWeeksPayloadForSubmit() {
+        const weekType = document.getElementById('weekTypeInput')?.value || '1';
+        const weekIndex = document.getElementById('weekIndexInput')?.value || '0';
+
+        if (weekType === '2') {
+            const week1Key = buildGridCacheKey('2', '0');
+            const week2Key = buildGridCacheKey('2', '1');
+            const payload = [];
+
+            if (gridCache[week1Key]) {
+                payload.push({ weekType: 2, weekIndex: 0, grid: gridCache[week1Key] });
+            }
+            if (gridCache[week2Key]) {
+                payload.push({ weekType: 2, weekIndex: 1, grid: gridCache[week2Key] });
+            }
+
+            if (payload.length === 0) {
+                payload.push({
+                    weekType: 2,
+                    weekIndex: parseInt(weekIndex, 10) || 0,
+                    grid: captureCurrentGrid()
+                });
+            }
+            return payload;
+        }
+
+        const weeklyKey = buildGridCacheKey('1', '0');
+        return [{
+            weekType: 1,
+            weekIndex: 0,
+            grid: gridCache[weeklyKey] || captureCurrentGrid()
+        }];
+    }
+
+    document.getElementById('weekTypeInput')?.addEventListener('change', function() {
+        persistActiveGrid();
+        syncWeekControls();
+        restoreGridForCurrentSelection();
+        updateActionButtonsState();
+    });
+    document.getElementById('weekIndexInput')?.addEventListener('change', function() {
+        persistActiveGrid();
+        syncWeekControls();
+        restoreGridForCurrentSelection();
+        updateActionButtonsState();
+    });
+    document.getElementById('templateNameInput')?.addEventListener('input', updateActionButtonsState);
+    document.getElementById('templateNameInput')?.addEventListener('blur', function(e) {
+        if (templateNameBlurLock) return;
+        const ok = validateTemplateName(false);
+        if (!ok) {
+            templateNameBlurLock = true;
+            alert('Template name already exists. Please choose a different name.');
+            setTimeout(() => {
+                e.target.focus();
+                templateNameBlurLock = false;
+            }, 0);
+        }
+    });
+    document.getElementById('mainForm')?.addEventListener('submit', async function(e) {
+        if (isProgrammaticSubmit) {
+            return;
+        }
+        e.preventDefault();
+
+        // Capture the form element synchronously so we don't rely on e.currentTarget after async awaits
+        const formEl = e.currentTarget || e.target || document.getElementById('mainForm');
+
+        persistActiveGrid();
+        syncWeekControls();
+        const payload = buildWeeksPayloadForSubmit();
+        const holder = document.getElementById('allWeeksGridJson');
+        if (holder) {
+            holder.value = JSON.stringify(payload);
+        }
+
+        const weekType = document.getElementById('weekTypeInput')?.value || '1';
+        const templateName = (document.getElementById('templateNameInput')?.value || '').trim();
+        const hasGridValue = hasAnyAssignedShift(captureCurrentGrid());
+        let biweeklyHasData = true;
+        if (weekType === '2') {
+            const biWeek1 = payload.find(p => p.weekType === 2 && p.weekIndex === 0);
+            const biWeek2 = payload.find(p => p.weekType === 2 && p.weekIndex === 1);
+            const hasWeek1 = hasAnyAssignedShift(biWeek1?.grid);
+            const hasWeek2 = hasAnyAssignedShift(biWeek2?.grid);
+            biweeklyHasData = hasWeek1 || hasWeek2;
+        }
+        if (!templateName) {
+            alert('Please enter a template name.');
+            return;
+        }
+        if ((weekType !== '2' && !hasGridValue) || (weekType === '2' && !biweeklyHasData)) {
+            alert('Please assign at least one shift before saving.');
+            return;
+        }
+        if (!validateTemplateName()) {
+            alert('Template name already exists. Please choose a different name.');
+            return;
+        }
+
+        if (weekType === '1' && templateName) {
+            const localWeek1 = gridCache[buildGridCacheKey('2', '0')];
+            const localWeek2 = gridCache[buildGridCacheKey('2', '1')];
+            const hasLocalBiweeklyData = hasAnyAssignedShift(localWeek1) || hasAnyAssignedShift(localWeek2);
+
+            let hasServerBiweeklyData = false;
+            try {
+                const w1 = await fetchTemplateWeekFromServer(templateName, '2', '0', false);
+                const w2 = await fetchTemplateWeekFromServer(templateName, '2', '1', false);
+                hasServerBiweeklyData = hasAnyAssignedShift(w1?.grid) || hasAnyAssignedShift(w2?.grid);
+            } catch {
+                // Ignore fetch errors here and allow normal submit fallback.
+            }
+
+            if (hasLocalBiweeklyData || hasServerBiweeklyData) {
+                const ok = confirm('Current Week Type is Weekly, but this template has two-week data. Save anyway?');
+                if (!ok) return;
+            }
+        }
+
+        isProgrammaticSubmit = true;
+        // Use the captured form element (or fallback to querying by id) to submit, avoiding e.currentTarget after awaits
+        const toSubmit = formEl || document.getElementById('mainForm');
+        if (toSubmit && typeof toSubmit.submit === 'function') {
+            toSubmit.submit();
+        } else if (document.getElementById('mainForm')) {
+            // final fallback
+            document.getElementById('mainForm').submit();
+        }
+    });
+    syncWeekControls();
+    updateTemplateModeTitle();
+    restoreGridForCurrentSelection(false);
+    updateActionButtonsState();
+    validateTemplateName();
+
+    document.getElementById('autoAssignBtn').addEventListener('click', async function(e) {
+        e.preventDefault();
+        persistActiveGrid();
+        syncWeekControls();
+        const templateName = (document.getElementById('templateNameInput').value || '').trim();
+        const assignStart = document.getElementById('assignStart').value;
+        const assignEnd = document.getElementById('assignEnd').value;
+        const weekType = parseInt((document.getElementById('weekTypeInput')?.value || '1'), 10);
+        let hasGridValue = false;
+        if (weekType === 2) {
+            const localWeek1 = gridCache[buildGridCacheKey('2', '0')];
+            const localWeek2 = gridCache[buildGridCacheKey('2', '1')];
+            let hasWeek1 = hasAnyAssignedShift(localWeek1);
+            let hasWeek2 = hasAnyAssignedShift(localWeek2);
+            if (!hasWeek1 || !hasWeek2) {
+                const w1 = await fetchTemplateWeekFromServer(templateName, '2', '0', false);
+                const w2 = await fetchTemplateWeekFromServer(templateName, '2', '1', false);
+                if (!hasWeek1) hasWeek1 = hasAnyAssignedShift(w1?.grid);
+                if (!hasWeek2) hasWeek2 = hasAnyAssignedShift(w2?.grid);
+            }
+            hasGridValue = hasWeek1 || hasWeek2;
+            if (!hasWeek1 || !hasWeek2) {
+                alert('Biweekly template must include both Week 1 and Week 2 data before generating shiftsheets.');
+                return;
+            }
+        } else {
+            hasGridValue = hasAnyAssignedShift(captureCurrentGrid());
+        }
+        if (!templateName) {
+            alert('Please enter a template name.');
+            return;
+        }
+        if (!hasGridValue) {
+            alert('Please assign at least one shift before generating.');
+            return;
+        }
+        this.disabled = true;
+        this.textContent = 'Saving...';
+        try {
+            const payload = buildWeeksPayloadForSubmit();
+            const holder = document.getElementById('allWeeksGridJson');
+            if (holder) {
+                holder.value = JSON.stringify(payload);
+            }
+            const formData = new FormData(document.getElementById('mainForm'));
+            const saveResp = await fetch('/Shift/SaveShiftTemplate', {
+                method: 'POST',
+                body: formData
+            });
+            if (!saveResp.ok) {
+                const err = await saveResp.text();
+                alert('Save failed: ' + err);
+                this.disabled = false;
+                this.textContent = 'Generate Schedule';
+                return;
+            }
+        } catch (ex) {
+            alert('Save error: ' + ex);
+            this.disabled = false;
+            this.textContent = 'Generate Schedule';
+            return;
+        }
+        this.textContent = 'Generating...';
+        try {
+            const resp = await fetch('/Shift/AutoAssignByTemplate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name=__RequestVerificationToken]')?.value || ''
+                },
+                body: JSON.stringify({
+                    templateName: templateName,
+                    startDate: assignStart || null,
+                    endDate: assignEnd || null,
+                    weekType: weekType
+                })
+            });
+            if (resp.ok) {
+                const data = await resp.json().catch(() => ({}));
+                if (data && data.success === false) {
+                    alert(data.message || 'Auto assignment failed.');
+                    return;
+                }
+                alert('Schedule generated successfully. ' + (data.message || 'Auto assignment completed!'));
+                window.location.reload();
+            } else {
+                const err = await resp.text();
+                alert('Auto assign failed: ' + err);
+            }
+        } catch (ex) {
+            alert('Auto assign error: ' + ex);
+        } finally {
+            this.disabled = false;
+            this.textContent = 'Generate Schedule';
+        }
+    });
+
+    document.getElementById('deleteTemplateBtn')?.addEventListener('click', async function() {
+        const templateName = (document.getElementById('templateNameInput')?.value || '').trim();
+        if (!templateName) {
+            alert('Please enter/select a template name to delete.');
+            return;
+        }
+        if (!confirm(`Delete template "${templateName}" (all weeks)?`)) {
+            return;
+        }
+
+        try {
+            const resp = await fetch('/Shift/DeleteTemplate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ templateName })
+            });
+
+            if (!resp.ok) {
+                const err = await resp.text();
+                alert('Delete failed: ' + err);
+                return;
+            }
+
+            const data = await resp.json().catch(() => ({}));
+            if (data && data.success === false) {
+                alert(data.message || 'Delete failed.');
+                return;
+            }
+
+            document.querySelectorAll('#templateMenu li').forEach(li => {
+                if ((li.textContent || '').trim() === templateName) {
+                    li.remove();
+                }
+            });
+            existingTemplateNameSet.delete(templateName.toLowerCase());
+            createNewTemplate();
+            validateTemplateName();
+            alert(data.message || 'Template deleted.');
+        } catch (ex) {
+            alert('Delete failed: ' + ex);
+        }
+    });
+</script>

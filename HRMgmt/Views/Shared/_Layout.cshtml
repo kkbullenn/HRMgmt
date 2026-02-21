@@ -1,0 +1,113 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - HRMgmt</title>
+
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/HRMgmt.styles.css" asp-append-version="true" />
+</head>
+
+<body>
+    <div class="app-shell @(ViewContext.RouteData.Values["controller"]?.ToString() == "Shift" && ViewContext.RouteData.Values["action"]?.ToString() == "ShiftAssignment" ? "shift-assignment-page" : "")">
+
+        <header class="pill-nav">
+            @{
+                var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
+                var actionName = ViewContext.RouteData.Values["action"]?.ToString();
+
+                var isLandingPage = controllerName == "Home" && actionName == "Index";
+                var isLoginPage = controllerName == "Account" && actionName == "Login";
+                var userFirstName = Context.Session.GetString("UserFirstName");
+                var isFullyLoggedIn = User.Identity?.IsAuthenticated == true && !string.IsNullOrEmpty(userFirstName);
+            }
+
+            @* Brand only shows on Login page *@
+            @if (isLoginPage)
+            {
+                <a class="brand-pill" asp-area="" asp-controller="Home" asp-action="Index">Back</a>
+            }
+
+            @* Nav only shows when logged in *@
+            @if (isFullyLoggedIn)
+            {
+                
+                <nav class="nav-pills">
+                    @if (!isLandingPage)
+                    {
+                        <a asp-controller="Home" asp-action="Index" class="back-pill" title="Back to Home">
+                            ←
+                        </a>
+                    }
+                    @if (User.IsInRole("Employee"))
+                    {
+                        <a class="nav-pill @(controllerName == "Users" ? "active" : "")" 
+                           asp-controller="Users" asp-action="Profile">Profile</a>
+       
+                        <a class="nav-pill @(controllerName == "Shift" ? "active" : "")" 
+                           asp-controller="Shift" asp-action="EmployeeShift">My Shifts</a>
+       
+                        <a class="nav-pill @(controllerName == "Payroll" && actionName == "MyPayroll" ? "active" : "")" 
+                           asp-controller="Payroll" asp-action="MyPayroll">My Payroll</a>
+       
+                        <a class="nav-pill @(actionName == "MyPayrollCalculate" ? "active" : "")" 
+                           asp-controller="Payroll" asp-action="MyPayrollCalculate">My Payroll Calc</a>
+                    }
+
+                    @if (User.IsInRole("Admin") || User.IsInRole("HR"))
+                    {
+                        <a class="nav-pill @(controllerName == "Users" ? "active" : "")" 
+                           asp-controller="Users" asp-action="Index">People</a>
+       
+                        <a class="nav-pill @(controllerName == "Shift" && actionName == "EmployeeShift" ? "active" : "")" 
+                           asp-controller="Shift" asp-action="EmployeeShift">Schedule</a>
+       
+                        <a class="nav-pill @(controllerName == "Shift" && actionName == "Index" ? "active" : "")" 
+                           asp-controller="Shift" asp-action="Index">Shifts</a>
+                    }
+
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <a class="nav-pill @(actionName == "AdminCalculate" ? "active" : "")" 
+                           asp-controller="Payroll" asp-action="AdminCalculate">Admin Payroll</a>
+                    }
+
+                </nav>
+            }
+
+            <div class="nav-actions">
+                @if (isFullyLoggedIn)
+                {
+                    <div class="user-pill">
+                        <span class="user-pill-name">Hello, @User.Identity.Name.Split(" ")[0]!</span>
+                        <a class="user-pill-link" asp-controller="Account" asp-action="Logout">Logout</a>
+                    </div>
+                }
+                else
+                {
+                    @* No login button in header when logged out *@
+                }
+            </div>
+        </header>
+
+        <main class="page">
+            @RenderBody()
+        </main>
+
+        <footer class="shell-footer">
+            <div>
+                &copy; 2026 - HRMgmt -
+                <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+            </div>
+        </footer>
+
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>  
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

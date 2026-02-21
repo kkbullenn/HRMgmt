@@ -1,0 +1,45 @@
+@model IEnumerable<HRMgmt.Models.User>
+
+@{
+    ViewData["Title"] = "People";
+}
+
+<div class="d-flex align-items-center justify-content-between" style="margin-bottom: 12px;">
+    <div>
+        <h1 style="margin:0; font-weight:800;">People</h1>
+        <div style="color: var(--text-muted); margin-top: 4px;">Directory of employees</div>
+    </div>
+
+    <a class="btn btn-primary" asp-action="Create">Create New</a>
+</div>
+
+<div class="people-grid">
+    @foreach (var item in Model)
+    {
+        string imgSrc;
+        if (item.Photo != null && item.Photo.Length > 0)
+        {
+            var base64 = Convert.ToBase64String(item.Photo);
+            imgSrc = $"data:image/jpeg;base64,{base64}";
+        }
+        else
+        {
+            imgSrc = Url.Content("~/images/default_avatar.png");
+        }
+
+        <a class="people-card"
+           asp-action="Details"
+           asp-route-id="@item.UserId">
+            <img class="people-avatar" src="@imgSrc" alt="Employee photo" />
+
+            <div class="people-card-body">
+                <div>
+                    <div class="people-name">@item.FirstName @item.LastName</div>
+                    <div class="people-sub">Click to view details</div>
+                </div>
+
+                <div class="people-pill">$@item.HourlyWage/hr</div>
+            </div>
+        </a>
+    }
+</div>
