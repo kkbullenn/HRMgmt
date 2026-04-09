@@ -6,7 +6,7 @@ HRMgmt is an ASP.NET MVC web application designed to streamline human resource o
 
 ## 🚀 Overview
 
-This system helps organizations manage core HR processes in one place. It supports employee records, scheduling, payroll tracking, and administrative tools for monitoring staff operations.
+This system helps organizations manage core HR processes in one place. It supports employee records, scheduling, payroll tracking, and administrative tools for monitoring staff operations. 
 
 ---
 
