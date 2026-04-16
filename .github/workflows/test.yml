@@ -2,10 +2,10 @@ name: Test
 
 on:
   push:
-    branches: [ main, dev, test-dev ]
+    branches: [ dev, test-dev ]
 
   pull_request:
-    branches: [ main, dev, test-dev, 'feature/**' ]
+    branches: [ dev, test-dev, 'feature/**' ]
       
 env:
   DOTNET_NOLOGO: true
